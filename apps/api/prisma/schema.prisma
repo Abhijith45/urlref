@@ -13,6 +13,13 @@ enum UserRole {
   ADMIN
 }
 
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
 enum PlanTier {
   FREE
   PRO
@@ -41,8 +48,10 @@ model User {
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  links         Link[]
-  customDomains CustomDomain[]
+  links                Link[]
+  customDomains        CustomDomain[]
+  ownedWorkspaces      Workspace[]       @relation("WorkspaceOwner")
+  workspaceMemberships WorkspaceMember[]
 
   @@index([clerkId])
   @@index([stripeCustomerId])
@@ -51,21 +60,24 @@ model User {
 }
 
 model CustomDomain {
-  id                String       @id @default(uuid()) @db.Uuid
-  userId            String       @map("user_id") @db.Uuid
-  hostname          String       @unique @db.VarChar(255)
-  status            DomainStatus @default(PENDING)
-  verificationToken String       @map("verification_token") @db.VarChar(64)
-  cnameTarget       String       @default("cname.urlref.softics.in") @map("cname_target") @db.VarChar(255)
-  sslStatus         String       @default("pending_validation") @map("ssl_status") @db.VarChar(64)
-  custom404Url      String?      @map("custom_404_url") @db.VarChar(2048)
-  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                String        @id @default(uuid()) @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  workspaceId       String?       @map("workspace_id") @db.Uuid
+  hostname          String        @unique @db.VarChar(255)
+  status            DomainStatus  @default(PENDING)
+  verificationToken String        @map("verification_token") @db.VarChar(64)
+  cnameTarget       String        @default("cname.urlref.softics.in") @map("cname_target") @db.VarChar(255)
+  sslStatus         String        @default("pending_validation") @map("ssl_status") @db.VarChar(64)
+  custom404Url      String?       @map("custom_404_url") @db.VarChar(2048)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  links Link[]
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  links     Link[]
 
   @@index([userId])
+  @@index([workspaceId])
   @@index([hostname])
   @@map("custom_domains")
 }
@@ -73,6 +85,7 @@ model CustomDomain {
 model Link {
   id             String    @id @default(uuid()) @db.Uuid
   userId         String?   @map("user_id") @db.Uuid
+  workspaceId    String?   @map("workspace_id") @db.Uuid
   customDomainId String?   @map("custom_domain_id") @db.Uuid
   code           String    @unique @db.VarChar(32)
   destinationUrl String    @map("destination_url") @db.Text
@@ -87,10 +100,12 @@ model Link {
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workspace    Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   customDomain CustomDomain? @relation(fields: [customDomainId], references: [id], onDelete: SetNull)
   clickEvents  ClickEvent[]
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([workspaceId, createdAt(sort: Desc)])
   @@index([userId, utmCampaign])
   @@index([customDomainId])
   @@index([expiresAt])
@@ -117,4 +132,55 @@ model WebhookEvent {
   processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
 
   @@map("webhook_events")
+}
+
+model Workspace {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(128)
+  slug      String   @unique @db.VarChar(64)
+  ownerId   String   @map("owner_id") @db.Uuid
+  plan      PlanTier @default(FREE)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner         User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members       WorkspaceMember[]
+  invites       WorkspaceInvite[]
+  links         Link[]
+  customDomains CustomDomain[]
+
+  @@index([ownerId])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  role        WorkspaceRole @default(MEMBER)
+  joinedAt    DateTime      @default(now()) @map("joined_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@index([workspaceId])
+  @@map("workspace_members")
+}
+
+model WorkspaceInvite {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  email       String        @db.VarChar(320)
+  role        WorkspaceRole @default(MEMBER)
+  token       String        @unique @db.VarChar(64)
+  expiresAt   DateTime      @map("expires_at") @db.Timestamptz(6)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([workspaceId, email])
+  @@map("workspace_invites")
 }

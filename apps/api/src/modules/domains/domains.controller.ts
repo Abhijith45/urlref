@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { prisma } from '../../database/db';
 import { DomainsService } from './domains.service';
 import { createDomainSchema, updateDomainSchema } from '@shortener/shared';
 
@@ -110,6 +111,53 @@ export class DomainsController {
           message: 'Custom domain removed successfully',
         },
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Caddy On-Demand TLS Handshake Security Check:
+   * Called by Caddy reverse proxy before issuing or renewing an automated Let's Encrypt / ZeroSSL TLS certificate.
+   * Responds with 200 OK only if the domain is verified and active on the platform.
+   */
+  public static async caddyAsk(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const rawDomain = (req.query.domain as string) || '';
+      const domain = rawDomain.trim().toLowerCase();
+
+      if (!domain) {
+        res.status(400).send('Missing domain parameter');
+        return;
+      }
+
+      // Allow primary platform hostnames
+      const platformDomains = ['urlref.softics.in', 'apiref.softics.in', 'localhost', '127.0.0.1'];
+      if (platformDomains.includes(domain)) {
+        res.status(200).send('Domain authorized');
+        return;
+      }
+
+      // Verify active or verified custom domain in PostgreSQL
+      const customDomain = await prisma.customDomain.findFirst({
+        where: {
+          hostname: domain,
+          status: { in: ['ACTIVE', 'VERIFIED'] },
+        },
+        select: { id: true, status: true },
+      });
+
+      if (customDomain) {
+        res.status(200).send('Domain authorized');
+        return;
+      }
+
+      // Reject unverified or nonexistent domains to avoid Let's Encrypt rate limit abuse
+      res.status(404).send('Domain not authorized for on-demand TLS');
     } catch (error) {
       next(error);
     }

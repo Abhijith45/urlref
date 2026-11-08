@@ -9,5 +9,6 @@ billingRouter.post('/webhook', BillingController.handleWebhook);
 
 // Authenticated user billing endpoints
 billingRouter.get('/subscription', requireAuth, BillingController.getSubscription);
+billingRouter.get('/invoices', requireAuth, BillingController.listInvoices);
 billingRouter.post('/checkout', requireAuth, BillingController.createCheckout);
 billingRouter.post('/portal', requireAuth, BillingController.createPortal);

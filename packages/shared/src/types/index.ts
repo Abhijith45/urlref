@@ -49,6 +49,7 @@ export interface UserDto {
 export interface LinkDto {
   id: string;
   userId: string | null;
+  workspaceId?: string | null;
   code: string;
   title?: string | null;
   shortUrl: string;
@@ -159,3 +160,40 @@ export interface ApiError {
     requestId?: string;
   };
 }
+
+export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+
+export interface WorkspaceMemberDto {
+  id: string;
+  workspaceId: string;
+  userId: string;
+  role: WorkspaceRole;
+  joinedAt: string;
+  user: {
+    id: string;
+    email: string;
+  };
+}
+
+export interface WorkspaceInviteDto {
+  id: string;
+  workspaceId: string;
+  email: string;
+  role: WorkspaceRole;
+  token: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface WorkspaceDto {
+  id: string;
+  name: string;
+  slug: string;
+  ownerId: string;
+  plan: SubscriptionTier;
+  role: WorkspaceRole;
+  membersCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+

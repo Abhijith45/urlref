@@ -15,6 +15,7 @@ import linksRouter from './modules/links/links.routes';
 import { analyticsRouter } from './modules/analytics/analytics.routes';
 import { billingRouter } from './modules/billing/billing.routes';
 import domainsRouter from './modules/domains/domains.routes';
+import workspacesRouter from './modules/workspaces/workspaces.routes';
 import redirectsRouter from './modules/redirects/redirects.routes';
 import { NotFoundError } from './errors/app-error';
 
@@ -140,6 +141,7 @@ export function createApp(): Express {
   app.use('/api/v1/analytics', analyticsRouter);
   app.use('/api/v1/billing', billingRouter);
   app.use('/api/v1/domains', domainsRouter);
+  app.use('/api/v1/workspaces', workspacesRouter);
 
   // Public Redirect Handler (Stateless Base62 fast lookup)
   app.use('/', redirectsRouter);

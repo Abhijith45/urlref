@@ -1,11 +1,14 @@
 services:
+  # ---------------------------------------------------------------------------
+  # 1. URLRef Express API Backend
+  # ---------------------------------------------------------------------------
   - type: web
-    name: url-shortener-api
-    env: docker
+    name: urlref-api
+    runtime: docker
     dockerfilePath: apps/api/Dockerfile
     dockerContext: .
-    plan: starter
     region: oregon
+    plan: starter
     domains:
       - apiref.softics.in
     healthCheckPath: /health
@@ -15,18 +18,20 @@ services:
         value: production
       - key: PORT
         value: 5000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: urlref-postgres
+          property: connectionString
+      - key: DIRECT_URL
+        fromDatabase:
+          name: urlref-postgres
+          property: connectionString
       - key: APP_BASE_URL
         value: https://apiref.softics.in
       - key: FRONTEND_URL
         value: https://urlref.softics.in
       - key: COOKIE_DOMAIN
         value: .softics.in
-      - key: LOG_LEVEL
-        value: info
-      - key: DATABASE_URL
-        sync: false
-      - key: DIRECT_URL
-        sync: false
       - key: SESSION_SECRET
         generateValue: true
       - key: CLERK_PUBLISHABLE_KEY
@@ -37,11 +42,35 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
-      - key: STRIPE_PRO_MONTHLY_PRICE_ID
-        sync: false
-      - key: STRIPE_PRO_ANNUAL_PRICE_ID
-        sync: false
-      - key: STRIPE_AGENCY_MONTHLY_PRICE_ID
-        sync: false
-      - key: STRIPE_AGENCY_ANNUAL_PRICE_ID
-        sync: false
+
+  # ---------------------------------------------------------------------------
+  # 2. URLRef React + Vite SPA Frontend
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: urlref-web
+    runtime: static
+    buildCommand: npm run build:web
+    staticPublishPath: apps/web/dist
+    region: oregon
+    plan: free
+    domains:
+      - urlref.softics.in
+    autoDeploy: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://apiref.softics.in
+
+# ---------------------------------------------------------------------------
+# 3. Managed PostgreSQL Database
+# ---------------------------------------------------------------------------
+databases:
+  - name: urlref-postgres
+    databaseName: shortener
+    user: shortener
+    region: oregon
+    plan: starter
+    postgresMajorVersion: 17

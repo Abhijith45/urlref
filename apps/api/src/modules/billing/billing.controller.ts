@@ -64,6 +64,20 @@ export class BillingController {
     }
   }
 
+  static async listInvoices(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new BadRequestError('User authentication required');
+      }
+
+      const invoices = await BillingService.listInvoices(userId);
+      res.status(200).json({ data: invoices });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async handleWebhook(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const signature = req.headers['stripe-signature'] as string;

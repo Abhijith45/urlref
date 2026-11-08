@@ -4,6 +4,9 @@ import { requireAuth } from '../../middleware/auth.middleware';
 
 const router = Router();
 
+// Public Caddy On-Demand TLS handshake ask hook (must precede authenticated routes)
+router.get('/caddy-ask', DomainsController.caddyAsk);
+
 router.use(requireAuth);
 
 router.post('/', DomainsController.createDomain);

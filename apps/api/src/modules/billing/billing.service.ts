@@ -248,6 +248,53 @@ export class BillingService {
   }
 
   /**
+   * Retrieves past invoices and payment receipts for the authenticated user.
+   */
+  static async listInvoices(userId: string): Promise<Array<{
+    id: string;
+    amountPaid: number;
+    currency: string;
+    status: string;
+    created: string;
+    pdfUrl: string | null;
+    hostedInvoiceUrl: string | null;
+  }>> {
+    if (!isStripeConfigured() || env.STRIPE_SECRET_KEY?.includes('mock')) {
+      return [];
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { stripeCustomerId: true },
+    });
+
+    if (!user || !user.stripeCustomerId) {
+      return [];
+    }
+
+    try {
+      const stripe = getStripeClient();
+      const invoices = await stripe.invoices.list({
+        customer: user.stripeCustomerId,
+        limit: 12,
+      });
+
+      return invoices.data.map((inv) => ({
+        id: inv.id,
+        amountPaid: inv.amount_paid,
+        currency: inv.currency,
+        status: inv.status || 'unknown',
+        created: new Date(inv.created * 1000).toISOString(),
+        pdfUrl: inv.invoice_pdf || null,
+        hostedInvoiceUrl: inv.hosted_invoice_url || null,
+      }));
+    } catch (stripeErr) {
+      logger.warn({ stripeErr, customerId: user.stripeCustomerId }, 'Failed to fetch Stripe invoices');
+      return [];
+    }
+  }
+
+  /**
    * Processes verified incoming Stripe Webhook events to keep user plan and subscription status in sync.
    */
   static async handleWebhookEvent(event: Stripe.Event): Promise<void> {
@@ -335,6 +382,18 @@ export class BillingService {
             stripeSubscriptionId: null,
           },
         });
+        break;
+      }
+
+      case 'invoice.paid': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = (invoice as any).subscription;
+        if (subscriptionId && typeof subscriptionId === 'string') {
+          await prisma.user.updateMany({
+            where: { stripeSubscriptionId: subscriptionId },
+            data: { subscriptionStatus: 'active' },
+          });
+        }
         break;
       }
 

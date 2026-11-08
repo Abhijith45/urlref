@@ -57,6 +57,7 @@ export type UpdateDomainInput = z.infer<typeof updateDomainSchema>;
 
 export interface CustomDomainDto {
   id: string;
+  workspaceId?: string | null;
   hostname: string;
   status: 'PENDING' | 'VERIFIED' | 'ACTIVE' | 'FAILED';
   verificationToken: string;
