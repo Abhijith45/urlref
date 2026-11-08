@@ -29,10 +29,10 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd="pg_isready -U shortener -d shortener_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
     steps:
       - name: Checkout Code
@@ -63,9 +63,7 @@ jobs:
         run: npm run build -w apps/web
 
       - name: Run Database Migrations
-        env:
-          DATABASE_URL: postgresql://shortener:test_password@localhost:5432/shortener_test
-        run: npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
+        run: npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && npx prisma db push --schema=apps/api/prisma/schema.prisma
 
       - name: Run Unit & Integration Tests
         env:
@@ -99,10 +97,10 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd="pg_isready -U shortener -d shortener_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
     steps:
       - name: Checkout Code
@@ -121,9 +119,7 @@ jobs:
         run: npx prisma generate --schema=apps/api/prisma/schema.prisma
 
       - name: Run Database Migrations
-        env:
-          DATABASE_URL: postgresql://shortener:test_password@localhost:5432/shortener_test
-        run: npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
+        run: npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && npx prisma db push --schema=apps/api/prisma/schema.prisma
 
       - name: Build All Workspaces
         run: npm run build:shared && npm run build:api && npm run build:web
