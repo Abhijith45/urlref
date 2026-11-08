@@ -19,9 +19,8 @@ export const prisma =
         : ['error'],
   });
 
-if (process.env.NODE_ENV !== 'production') {
-  global.prismaInstance = prisma;
-}
+// Ensure singleton instance persists globally across all environments
+global.prismaInstance = prisma;
 
 export async function checkDatabaseConnection(): Promise<boolean> {
   try {

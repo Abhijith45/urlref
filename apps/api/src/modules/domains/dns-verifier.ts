@@ -10,6 +10,27 @@ export interface DnsVerificationResult {
 }
 
 /**
+ * Wraps a DNS query promise in a strict timeout boundary.
+ * Prevents hanging customer nameservers or broken DNS delegates from blocking Express worker threads.
+ */
+function withDnsTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs = 2500,
+  queryType = 'DNS',
+): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error(`${queryType} lookup timed out after ${timeoutMs}ms`);
+      (error as unknown as { code: string }).code = 'ETIMEDOUT';
+      reject(error);
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+}
+
+/**
  * Verifies DNS ownership of a custom domain using either TXT challenge or CNAME delegation.
  */
 export async function verifyDnsRecords(
@@ -28,9 +49,13 @@ export async function verifyDnsRecords(
     message: 'DNS records not yet detected or propagation in progress',
   };
 
-  // 1. Try TXT Challenge verification on _urlref-challenge.<hostname>
+  // 1. Try TXT Challenge verification on _urlref-challenge.<hostname> with 2.5s timeout
   try {
-    const txtRecords = await dns.resolveTxt(txtChallengeHost);
+    const txtRecords = await withDnsTimeout(
+      dns.resolveTxt(txtChallengeHost),
+      2500,
+      'TXT',
+    );
     // dns.resolveTxt returns string[][]
     const flatTxt = txtRecords.map((chunks) => chunks.join(''));
     result.detectedTxt = flatTxt;
@@ -47,14 +72,20 @@ export async function verifyDnsRecords(
     }
   } catch (err: unknown) {
     const dnsErr = err as { code?: string };
-    if (dnsErr.code !== 'ENODATA' && dnsErr.code !== 'ENOTFOUND') {
+    if (dnsErr.code === 'ETIMEDOUT') {
+      logger.debug({ host: txtChallengeHost }, 'DNS TXT lookup timed out after 2500ms');
+    } else if (dnsErr.code !== 'ENODATA' && dnsErr.code !== 'ENOTFOUND') {
       logger.debug({ err, host: txtChallengeHost }, 'DNS TXT lookup diagnostic message');
     }
   }
 
-  // 2. Try CNAME verification on <hostname>
+  // 2. Try CNAME verification on <hostname> with 2.5s timeout
   try {
-    const cnameRecords = await dns.resolveCname(cleanHost);
+    const cnameRecords = await withDnsTimeout(
+      dns.resolveCname(cleanHost),
+      2500,
+      'CNAME',
+    );
     result.detectedCname = cnameRecords;
 
     const targetLower = expectedCname.toLowerCase().replace(/\.$/, '');
@@ -71,7 +102,9 @@ export async function verifyDnsRecords(
     }
   } catch (err: unknown) {
     const dnsErr = err as { code?: string };
-    if (dnsErr.code !== 'ENODATA' && dnsErr.code !== 'ENOTFOUND') {
+    if (dnsErr.code === 'ETIMEDOUT') {
+      logger.debug({ host: cleanHost }, 'DNS CNAME lookup timed out after 2500ms');
+    } else if (dnsErr.code !== 'ENODATA' && dnsErr.code !== 'ENOTFOUND') {
       logger.debug({ err, host: cleanHost }, 'DNS CNAME lookup diagnostic message');
     }
   }

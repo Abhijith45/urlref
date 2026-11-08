@@ -73,6 +73,11 @@ export const createLinkSchema = z.object({
   destinationUrl: destinationUrlSchema,
   customAlias: customAliasSchema.optional().or(z.literal('')),
   customDomainId: z.string().uuid().optional().nullable(),
+  utmSource: z.string().trim().max(128).optional().nullable(),
+  utmMedium: z.string().trim().max(128).optional().nullable(),
+  utmCampaign: z.string().trim().max(128).optional().nullable(),
+  utmTerm: z.string().trim().max(128).optional().nullable(),
+  utmContent: z.string().trim().max(128).optional().nullable(),
   expiresAt: z
     .string()
     .datetime({ offset: true, message: 'Invalid ISO date string' })
@@ -89,10 +94,34 @@ export const createLinkSchema = z.object({
 
 export type CreateLinkInput = z.infer<typeof createLinkSchema>;
 
+export const bulkLinkRowSchema = z.object({
+  destinationUrl: destinationUrlSchema,
+  customAlias: customAliasSchema.optional().or(z.literal('')),
+  title: z.string().trim().max(255).optional(),
+  customDomainId: z.string().uuid().optional().nullable(),
+  utmSource: z.string().trim().max(128).optional().nullable(),
+  utmMedium: z.string().trim().max(128).optional().nullable(),
+  utmCampaign: z.string().trim().max(128).optional().nullable(),
+  utmTerm: z.string().trim().max(128).optional().nullable(),
+  utmContent: z.string().trim().max(128).optional().nullable(),
+});
+
+export const bulkImportSchema = z.object({
+  rows: z.array(bulkLinkRowSchema).min(1, 'CSV must contain at least 1 URL row').max(500, 'Batch limit is 500 URLs per import'),
+});
+
+export type BulkLinkRowInput = z.infer<typeof bulkLinkRowSchema>;
+export type BulkImportInput = z.infer<typeof bulkImportSchema>;
+
 export const updateLinkSchema = z
   .object({
     destinationUrl: destinationUrlSchema.optional(),
     isActive: z.boolean().optional(),
+    utmSource: z.string().trim().max(128).optional().nullable(),
+    utmMedium: z.string().trim().max(128).optional().nullable(),
+    utmCampaign: z.string().trim().max(128).optional().nullable(),
+    utmTerm: z.string().trim().max(128).optional().nullable(),
+    utmContent: z.string().trim().max(128).optional().nullable(),
     expiresAt: z
       .string()
       .datetime({ offset: true, message: 'Invalid ISO date string' })
@@ -110,6 +139,11 @@ export const updateLinkSchema = z
     (data) =>
       data.destinationUrl !== undefined ||
       data.isActive !== undefined ||
+      data.utmSource !== undefined ||
+      data.utmMedium !== undefined ||
+      data.utmCampaign !== undefined ||
+      data.utmTerm !== undefined ||
+      data.utmContent !== undefined ||
       data.expiresAt !== undefined,
     { message: 'At least one field must be provided to update' },
   );

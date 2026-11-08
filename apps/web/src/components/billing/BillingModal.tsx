@@ -22,6 +22,281 @@ interface BillingModalProps {
   onRefresh?: () => void;
 }
 
+interface TierConfig {
+  id: 'FREE' | 'PRO' | 'AGENCY';
+  name: string;
+  subtitle: string;
+  monthlyPrice: string;
+  annualPrice: string;
+  popular?: boolean;
+  features: { text: string; bold?: boolean }[];
+}
+
+const TIERS: TierConfig[] = [
+  {
+    id: 'FREE',
+    name: 'Free Community',
+    subtitle: 'For individuals and hobbyists testing links',
+    monthlyPrice: '₹0',
+    annualPrice: '₹0',
+    features: [
+      { text: '10 short links per month' },
+      { text: 'Static QR code generator' },
+      { text: '7 days click analytics' },
+    ],
+  },
+  {
+    id: 'PRO',
+    name: 'Pro Creator',
+    subtitle: 'For founders, creators, and growing SMBs',
+    monthlyPrice: '₹199',
+    annualPrice: '₹1,999',
+    popular: true,
+    features: [
+      { text: '100 short links per month', bold: true },
+      { text: '100 dynamic editable QRs', bold: true },
+      { text: '1 custom branded domain' },
+      { text: '30 days visitor analytics' },
+      { text: 'Center logo on QR codes' },
+    ],
+  },
+  {
+    id: 'AGENCY',
+    name: 'Growth Agency',
+    subtitle: 'For digital marketing agencies and high volume brands',
+    monthlyPrice: '₹499',
+    annualPrice: '₹4,999',
+    features: [
+      { text: '1,000 short links per month', bold: true },
+      { text: 'Unlimited dynamic QRs', bold: true },
+      { text: 'Up to 5 custom domains' },
+      { text: '365 days analytics retention' },
+      { text: 'Lossless vector SVG export' },
+    ],
+  },
+];
+
+interface PricingTierCardProps {
+  tier: TierConfig;
+  interval: 'month' | 'year';
+  currentTier: string;
+  loadingTier: string | null;
+  onUpgrade: (tier: 'PRO' | 'AGENCY') => void;
+}
+
+interface PricingCardBadgeProps {
+  popular?: boolean;
+  isCurrent: boolean;
+}
+
+const PricingCardBadge: React.FC<PricingCardBadgeProps> = ({ popular, isCurrent }) => {
+  if (popular) {
+    return (
+      <Chip
+        label="Most popular"
+        size="small"
+        sx={{
+          position: 'absolute',
+          top: -10,
+          right: 14,
+          bgcolor: '#F4BE38',
+          color: '#1C2411',
+          fontWeight: 800,
+          fontSize: '0.68rem',
+          height: 20,
+        }}
+      />
+    );
+  }
+  if (isCurrent) {
+    return (
+      <Chip
+        label="Current plan"
+        size="small"
+        sx={{
+          position: 'absolute',
+          top: -10,
+          right: 14,
+          bgcolor: '#587529',
+          color: '#ffffff',
+          fontWeight: 700,
+          fontSize: '0.68rem',
+          height: 20,
+        }}
+      />
+    );
+  }
+  return null;
+};
+
+interface PricingCardButtonProps {
+  tierId: string;
+  tierName: string;
+  isFree: boolean;
+  isPro: boolean;
+  isCurrent: boolean;
+  loadingTier: string | null;
+  onUpgrade: (tier: 'PRO' | 'AGENCY') => void;
+}
+
+const PricingCardButton: React.FC<PricingCardButtonProps> = ({
+  tierId,
+  tierName,
+  isFree,
+  isPro,
+  isCurrent,
+  loadingTier,
+  onUpgrade,
+}) => {
+  if (isFree) {
+    return (
+      <Button
+        variant="outlined"
+        disabled
+        fullWidth
+        disableElevation
+        disableRipple
+        sx={{
+          py: 0.75,
+          borderRadius: 1.25,
+          fontWeight: 700,
+          fontSize: '0.8rem',
+          textTransform: 'none',
+        }}
+      >
+        {isCurrent ? 'Current plan' : 'Free tier'}
+      </Button>
+    );
+  }
+
+  const isLoading = loadingTier === tierId;
+  const buttonLabel = isCurrent
+    ? 'Active plan'
+    : isLoading
+    ? 'Connecting...'
+    : `Upgrade to ${tierName.split(' ')[0]}`;
+
+  return (
+    <Button
+      variant={isPro ? 'contained' : 'outlined'}
+      fullWidth
+      disableElevation
+      disableRipple
+      disabled={loadingTier !== null || isCurrent}
+      onClick={() => onUpgrade(tierId as 'PRO' | 'AGENCY')}
+      startIcon={
+        isLoading ? (
+          <CircularProgress size={14} color="inherit" />
+        ) : isPro ? (
+          <Zap size={14} />
+        ) : null
+      }
+      sx={{
+        py: 0.75,
+        borderRadius: 1.25,
+        fontWeight: 700,
+        fontSize: '0.825rem',
+        textTransform: 'none',
+        ...(isPro
+          ? {
+              bgcolor: isCurrent ? '#587529' : '#1C2411',
+              color: '#ffffff',
+              '&:hover': { bgcolor: '#000000' },
+            }
+          : {
+              borderColor: '#1C2411',
+              color: '#1C2411',
+              '&:hover': { bgcolor: '#F4F7EE' },
+            }),
+      }}
+    >
+      {buttonLabel}
+    </Button>
+  );
+};
+
+const PricingTierCard: React.FC<PricingTierCardProps> = ({
+  tier,
+  interval,
+  currentTier,
+  loadingTier,
+  onUpgrade,
+}) => {
+  const isCurrent = currentTier === tier.id;
+  const isPro = tier.id === 'PRO';
+  const isFree = tier.id === 'FREE';
+  const price = interval === 'month' ? tier.monthlyPrice : tier.annualPrice;
+  const period = interval === 'month' ? '/ month' : '/ year';
+  const cardBorder = isPro
+    ? '2px solid #F4BE38'
+    : isCurrent
+    ? '2px solid #587529'
+    : '1px solid #E4E9DC';
+
+  return (
+    <Box
+      sx={{
+        p: 2,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        textAlign: 'left',
+        bgcolor: isPro ? '#ffffff' : '#FBFBFA',
+        borderRadius: 2.25,
+        border: cardBorder,
+        boxShadow: isPro ? '0 6px 20px rgba(244, 190, 56, 0.12)' : 'none',
+        position: 'relative',
+      }}
+    >
+      <PricingCardBadge popular={tier.popular} isCurrent={isCurrent} />
+
+      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1C2411', fontSize: '0.95rem', mb: 0.25 }}>
+        {tier.name}
+      </Typography>
+      <Typography variant="caption" sx={{ color: '#556345', mb: 1.25, fontSize: '0.72rem', lineHeight: 1.3 }}>
+        {tier.subtitle}
+      </Typography>
+
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 1.5 }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, color: '#1C2411', fontSize: '1.65rem' }}>
+          {price}
+        </Typography>
+        <Typography variant="caption" sx={{ color: '#556345', fontSize: '0.75rem' }}>
+          {period}
+        </Typography>
+      </Box>
+
+      <Box sx={{ flex: 1, mb: 1.75, display: 'flex', flexDirection: 'column', gap: 0.85 }}>
+        {tier.features.map((f) => (
+          <Box key={f.text} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Check size={14} color="#71951E" />
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: f.bold ? 600 : 400,
+                color: '#1C2411',
+                fontSize: '0.78rem',
+              }}
+            >
+              {f.text}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+
+      <PricingCardButton
+        tierId={tier.id}
+        tierName={tier.name}
+        isFree={isFree}
+        isPro={isPro}
+        isCurrent={isCurrent}
+        loadingTier={loadingTier}
+        onUpgrade={onUpgrade}
+      />
+    </Box>
+  );
+};
+
 export const BillingModal: React.FC<BillingModalProps> = ({
   open,
   onClose,
@@ -49,12 +324,14 @@ export const BillingModal: React.FC<BillingModalProps> = ({
       if (res.data.data.url) {
         window.location.href = res.data.data.url;
       }
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.error?.message ||
-          err?.message ||
-          'Failed to start Stripe checkout session. Please ensure server Stripe keys are configured.',
-      );
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message
+          : err instanceof Error
+          ? err.message
+          : 'Failed to start Stripe checkout session.';
+      setError(message || 'Failed to start Stripe checkout session.');
     } finally {
       setLoadingTier(null);
     }
@@ -68,12 +345,14 @@ export const BillingModal: React.FC<BillingModalProps> = ({
       if (res.data.data.url) {
         window.location.href = res.data.data.url;
       }
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.error?.message ||
-          err?.message ||
-          'Failed to open Stripe billing portal.',
-      );
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message
+          : err instanceof Error
+          ? err.message
+          : 'Failed to open Stripe billing portal.';
+      setError(message || 'Failed to open Stripe billing portal.');
     } finally {
       setPortalLoading(false);
     }
@@ -88,11 +367,16 @@ export const BillingModal: React.FC<BillingModalProps> = ({
       slotProps={{
         paper: {
           sx: {
-            borderRadius: 3.5,
-            p: { xs: 2.5, sm: 3.5 },
+            borderRadius: 2.75,
+            p: { xs: 2, sm: 2.5 },
             bgcolor: '#ffffff',
             border: '1px solid #E4E9DC',
             boxShadow: '0 24px 48px -12px rgba(88, 117, 41, 0.2)',
+            maxWidth: 880,
+            maxHeight: { xs: '90vh', md: '92vh' },
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
           },
         },
       }}
@@ -100,55 +384,62 @@ export const BillingModal: React.FC<BillingModalProps> = ({
       <IconButton
         onClick={onClose}
         size="small"
+        aria-label="Close dialog"
         disableRipple
         sx={{
           position: 'absolute',
-          top: 16,
-          right: 16,
+          top: 14,
+          right: 14,
+          zIndex: 10,
           color: '#556345',
           bgcolor: '#FBFBFA',
           border: '1px solid #E4E9DC',
+          minWidth: 36,
+          minHeight: 36,
           '&:hover': { bgcolor: '#F4F7EE' },
         }}
       >
-        <X size={18} />
+        <X size={16} />
       </IconButton>
 
-      <DialogContent sx={{ p: 0, pt: 1, textAlign: 'center' }}>
+      <DialogContent sx={{ p: 0, pt: 0.5, textAlign: 'center', overflowY: 'auto' }}>
         {/* Header */}
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 1.5 }}>
           <Chip
-            icon={<Sparkles size={14} color="#587529" />}
+            icon={<Sparkles size={13} color="#587529" />}
             label="Transparent pricing with zero hidden fees"
             size="small"
             sx={{
               bgcolor: 'rgba(237, 218, 94, 0.3)',
               color: '#587529',
               fontWeight: 700,
-              fontSize: '0.75rem',
-              mb: 1.5,
+              fontSize: '0.72rem',
+              height: 22,
+              mb: 1,
               border: '1px solid #EDDA5E',
             }}
           />
           <Typography
-            variant="h4"
+            variant="h5"
             sx={{
               fontWeight: 800,
               color: '#1C2411',
-              mb: 1,
+              fontSize: { xs: '1.35rem', sm: '1.55rem' },
+              lineHeight: 1.25,
+              mb: 0.5,
               letterSpacing: '-0.02em',
               textWrap: 'balance',
             }}
           >
             Upgrade your link and QR capabilities
           </Typography>
-          <Typography variant="body2" sx={{ color: '#556345', maxWidth: 540, mx: 'auto', textWrap: 'pretty' }}>
+          <Typography variant="body2" sx={{ color: '#556345', maxWidth: 520, mx: 'auto', fontSize: '0.825rem', lineHeight: 1.35, textWrap: 'pretty' }}>
             Scale with custom branded domains, dynamic editable QR codes, and real time click analytics.
           </Typography>
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3, textAlign: 'left', borderRadius: 2 }}>
+          <Alert severity="error" sx={{ mb: 1.5, py: 0.5, textAlign: 'left', borderRadius: 1.5, fontSize: '0.8rem' }}>
             {error}
           </Alert>
         )}
@@ -160,9 +451,9 @@ export const BillingModal: React.FC<BillingModalProps> = ({
             alignItems: 'center',
             p: 0.5,
             bgcolor: '#FBFBFA',
-            borderRadius: 3,
+            borderRadius: 2,
             border: '1px solid #E4E9DC',
-            mb: 4,
+            mb: 2,
           }}
         >
           <Button
@@ -171,11 +462,11 @@ export const BillingModal: React.FC<BillingModalProps> = ({
             disableRipple
             onClick={() => setInterval('month')}
             sx={{
-              px: 2.5,
-              py: 0.75,
-              borderRadius: 2.5,
+              px: 2,
+              py: 0.5,
+              borderRadius: 1.5,
               fontWeight: 700,
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               textTransform: 'none',
               bgcolor: interval === 'month' ? '#ffffff' : 'transparent',
               color: interval === 'month' ? '#1C2411' : '#556345',
@@ -190,11 +481,11 @@ export const BillingModal: React.FC<BillingModalProps> = ({
             disableRipple
             onClick={() => setInterval('year')}
             sx={{
-              px: 2.5,
-              py: 0.75,
-              borderRadius: 2.5,
+              px: 2,
+              py: 0.5,
+              borderRadius: 1.5,
               fontWeight: 700,
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               textTransform: 'none',
               bgcolor: interval === 'year' ? '#ffffff' : 'transparent',
               color: interval === 'year' ? '#1C2411' : '#556345',
@@ -206,12 +497,12 @@ export const BillingModal: React.FC<BillingModalProps> = ({
               label="Save 17%"
               size="small"
               sx={{
-                ml: 1,
+                ml: 0.75,
                 bgcolor: '#EDDA5E',
                 color: '#587529',
                 fontWeight: 800,
-                fontSize: '0.7rem',
-                height: 20,
+                fontSize: '0.68rem',
+                height: 18,
               }}
             />
           </Button>
@@ -219,13 +510,13 @@ export const BillingModal: React.FC<BillingModalProps> = ({
 
         {/* Active Subscriber Manage Link */}
         {isActiveSubscriber && (
-          <Box sx={{ mb: 3, p: 2, bgcolor: '#FBFBFA', borderRadius: 2.5, border: '1px solid #E4E9DC' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
+          <Box sx={{ mb: 2, p: 1.25, bgcolor: '#FBFBFA', borderRadius: 2, border: '1px solid #E4E9DC' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
               <Box sx={{ textAlign: 'left' }}>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: '#1C2411' }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: '#1C2411', fontSize: '0.825rem' }}>
                   You are currently subscribed to the {currentTier} plan
                 </Typography>
-                <Typography variant="caption" sx={{ color: '#556345' }}>
+                <Typography variant="caption" sx={{ color: '#556345', fontSize: '0.72rem' }}>
                   Renews: {subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'Active'}
                 </Typography>
               </Box>
@@ -236,11 +527,13 @@ export const BillingModal: React.FC<BillingModalProps> = ({
                 disableRipple
                 onClick={handleManageBilling}
                 disabled={portalLoading}
-                startIcon={portalLoading ? <CircularProgress size={14} color="inherit" /> : <ExternalLink size={14} />}
+                startIcon={portalLoading ? <CircularProgress size={12} color="inherit" /> : <ExternalLink size={12} />}
                 sx={{
                   borderColor: '#587529',
                   color: '#587529',
                   fontWeight: 700,
+                  fontSize: '0.78rem',
+                  py: 0.5,
                   textTransform: 'none',
                 }}
               >
@@ -251,284 +544,23 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         )}
 
         {/* Pricing Cards Grid */}
-        <Grid container spacing={2.5} alignItems="stretch">
-          {/* Free Tier */}
-          <Grid item xs={12} md={4}>
-            <Box
-              sx={{
-                p: 3,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                textAlign: 'left',
-                bgcolor: '#FBFBFA',
-                borderRadius: 3,
-                border: currentTier === 'FREE' ? '2px solid #587529' : '1px solid #E4E9DC',
-                position: 'relative',
-              }}
-            >
-              {currentTier === 'FREE' && (
-                <Chip
-                  label="Current plan"
-                  size="small"
-                  sx={{
-                    position: 'absolute',
-                    top: -12,
-                    right: 16,
-                    bgcolor: '#587529',
-                    color: '#ffffff',
-                    fontWeight: 700,
-                    fontSize: '0.7rem',
-                  }}
-                />
-              )}
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1C2411' }}>
-                Free Community
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#556345', mb: 2 }}>
-                For individuals and hobbyists testing links
-              </Typography>
-
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 3 }}>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: '#1C2411' }}>
-                  ₹0
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#556345' }}>
-                  / month
-                </Typography>
-              </Box>
-
-              <Box sx={{ flex: 1, mb: 3, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ color: '#1C2411' }}>
-                    10 short links per month
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ color: '#1C2411' }}>
-                    Static QR code generator
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ color: '#1C2411' }}>
-                    7 days click analytics
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Button
-                variant="outlined"
-                disabled
-                fullWidth
-                disableElevation
-                disableRipple
-                sx={{
-                  py: 1,
-                  borderRadius: 2,
-                  fontWeight: 700,
-                  textTransform: 'none',
-                }}
-              >
-                {currentTier === 'FREE' ? 'Current plan' : 'Free tier'}
-              </Button>
-            </Box>
-          </Grid>
-
-          {/* Pro Tier (Featured) */}
-          <Grid item xs={12} md={4}>
-            <Box
-              sx={{
-                p: 3,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                textAlign: 'left',
-                bgcolor: '#ffffff',
-                borderRadius: 3,
-                border: '2px solid #F4BE38',
-                boxShadow: '0 8px 24px rgba(244, 190, 56, 0.15)',
-                position: 'relative',
-              }}
-            >
-              <Chip
-                label="Most popular"
-                size="small"
-                sx={{
-                  position: 'absolute',
-                  top: -12,
-                  right: 16,
-                  bgcolor: '#F4BE38',
-                  color: '#1C2411',
-                  fontWeight: 800,
-                  fontSize: '0.7rem',
-                }}
+        <Grid container spacing={2} alignItems="stretch">
+          {TIERS.map((tier) => (
+            <Grid item xs={12} md={4} key={tier.id}>
+              <PricingTierCard
+                tier={tier}
+                interval={interval}
+                currentTier={currentTier}
+                loadingTier={loadingTier}
+                onUpgrade={handleUpgrade}
               />
-
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1C2411' }}>
-                Pro Creator
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#556345', mb: 2 }}>
-                For founders, creators, and growing SMBs
-              </Typography>
-
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 3 }}>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: '#1C2411' }}>
-                  {interval === 'month' ? '₹199' : '₹1,999'}
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#556345' }}>
-                  {interval === 'month' ? '/ month' : '/ year'}
-                </Typography>
-              </Box>
-
-              <Box sx={{ flex: 1, mb: 3, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#1C2411' }}>
-                    100 short links per month
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#1C2411' }}>
-                    100 dynamic editable QRs
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ color: '#1C2411' }}>
-                    1 custom branded domain
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ color: '#1C2411' }}>
-                    30 days visitor analytics
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ color: '#1C2411' }}>
-                    Center logo on QR codes
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Button
-                variant="contained"
-                fullWidth
-                disableElevation
-                disableRipple
-                disabled={loadingTier !== null || currentTier === 'PRO'}
-                onClick={() => handleUpgrade('PRO')}
-                startIcon={loadingTier === 'PRO' ? <CircularProgress size={16} color="inherit" /> : <Zap size={16} />}
-                sx={{
-                  py: 1.1,
-                  borderRadius: 2,
-                  fontWeight: 700,
-                  textTransform: 'none',
-                  bgcolor: currentTier === 'PRO' ? '#587529' : '#1C2411',
-                  color: '#ffffff',
-                  '&:hover': { bgcolor: '#000000' },
-                }}
-              >
-                {currentTier === 'PRO' ? 'Active plan' : loadingTier === 'PRO' ? 'Connecting...' : 'Upgrade to Pro'}
-              </Button>
-            </Box>
-          </Grid>
-
-          {/* Agency Tier */}
-          <Grid item xs={12} md={4}>
-            <Box
-              sx={{
-                p: 3,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                textAlign: 'left',
-                bgcolor: '#FBFBFA',
-                borderRadius: 3,
-                border: currentTier === 'AGENCY' ? '2px solid #587529' : '1px solid #E4E9DC',
-              }}
-            >
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1C2411' }}>
-                Growth Agency
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#556345', mb: 2 }}>
-                For digital marketing agencies and high volume brands
-              </Typography>
-
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 3 }}>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: '#1C2411' }}>
-                  {interval === 'month' ? '₹499' : '₹4,999'}
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#556345' }}>
-                  {interval === 'month' ? '/ month' : '/ year'}
-                </Typography>
-              </Box>
-
-              <Box sx={{ flex: 1, mb: 3, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#1C2411' }}>
-                    1,000 short links per month
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#1C2411' }}>
-                    Unlimited dynamic QRs
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ color: '#1C2411' }}>
-                    Up to 5 custom domains
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ color: '#1C2411' }}>
-                    365 days analytics retention
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Check size={16} color="#71951E" />
-                  <Typography variant="body2" sx={{ color: '#1C2411' }}>
-                    Lossless vector SVG export
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Button
-                variant="outlined"
-                fullWidth
-                disableElevation
-                disableRipple
-                disabled={loadingTier !== null || currentTier === 'AGENCY'}
-                onClick={() => handleUpgrade('AGENCY')}
-                startIcon={loadingTier === 'AGENCY' ? <CircularProgress size={16} color="inherit" /> : null}
-                sx={{
-                  py: 1.1,
-                  borderRadius: 2,
-                  fontWeight: 700,
-                  textTransform: 'none',
-                  borderColor: '#1C2411',
-                  color: '#1C2411',
-                  '&:hover': { bgcolor: '#F4F7EE' },
-                }}
-              >
-                {currentTier === 'AGENCY' ? 'Active plan' : loadingTier === 'AGENCY' ? 'Connecting...' : 'Upgrade to Agency'}
-              </Button>
-            </Box>
-          </Grid>
+            </Grid>
+          ))}
         </Grid>
 
         {/* Security badge */}
-        <Box sx={{ mt: 3.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, color: '#556345', fontSize: '0.85rem' }}>
-          <ShieldCheck size={16} color="#71951E" />
+        <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75, color: '#556345', fontSize: '0.78rem' }}>
+          <ShieldCheck size={14} color="#71951E" />
           <span>Secured with 256 bit SSL encryption via Stripe</span>
         </Box>
       </DialogContent>

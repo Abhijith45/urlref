@@ -9,6 +9,7 @@ describe('Public 302 Redirect Engine (Integration)', () => {
   it('GET /:code should return 404 for invalid code characters', async () => {
     const res = await request(app).get('/invalid@code!');
     expect(res.status).toBe(404);
+    expect(res.headers['x-robots-tag']).toBe('noindex, nofollow');
     expect(res.body.error).toHaveProperty('code', 'LINK_NOT_FOUND');
   });
 
@@ -33,6 +34,7 @@ describe('Public 302 Redirect Engine (Integration)', () => {
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('https://github.com/nodejs/node');
     expect(res.headers['cache-control']).toContain('no-cache');
+    expect(res.headers['x-robots-tag']).toBe('noindex, nofollow');
   });
 
   it('GET /:code should return 410 Gone for disabled/inactive link', async () => {

@@ -126,7 +126,7 @@ export const theme = createTheme({
     },
   },
   shape: {
-    borderRadius: 14,
+    borderRadius: 10,
   },
   components: {
     MuiButtonBase: {
@@ -141,7 +141,7 @@ export const theme = createTheme({
       },
       styleOverrides: {
         root: {
-          borderRadius: 9,
+          borderRadius: 9, // Minimal rounded corner matching UI design
           padding: '8px 18px',
           fontFamily: 'Manrope, sans-serif',
           fontWeight: 600,
@@ -195,11 +195,18 @@ export const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
+          borderRadius: 10, // Unified minimal corner rounded matching button styling
           border: '1px solid #E4E9DC',
           boxShadow: 'none',
           backgroundImage: 'none',
           backgroundColor: '#ffffff',
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: 10,
         },
       },
     },
@@ -232,6 +239,7 @@ export const theme = createTheme({
     MuiChip: {
       styleOverrides: {
         root: {
+          borderRadius: 8, // Unified minimal corner rounded matching button styling
           fontFamily: 'Manrope, sans-serif',
           fontWeight: 600,
         },

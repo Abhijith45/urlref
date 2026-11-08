@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../database/db';
 import { dispatchClickEvent } from './click-dispatcher';
+import { redirectCache, CachedRedirectLink } from './redirect-cache';
 
 export class RedirectController {
   public static async handleRedirect(
@@ -11,6 +12,9 @@ export class RedirectController {
     const code = typeof req.params.code === 'string' ? req.params.code : '';
 
     try {
+      // Prevent search engine crawlers from indexing vanity or ephemeral short links
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+
       // Validate code character set
       if (!code || !/^[a-zA-Z0-9_-]+$/.test(code) || code.length > 32) {
         res.status(404).json({
@@ -27,59 +31,85 @@ export class RedirectController {
       const hostHeader = (req.headers['x-forwarded-host'] as string) || req.hostname || '';
       const requestHost = hostHeader.split(':')[0].toLowerCase();
 
-      const isPlatformHost =
-        requestHost === 'localhost' ||
-        requestHost === '127.0.0.1' ||
-        requestHost === 'apiref.softics.in' ||
-        requestHost === 'urlref.softics.in';
-
-      let customDomain: { id: string; custom404Url: string | null } | null = null;
-      if (!isPlatformHost) {
-        customDomain = await prisma.customDomain.findFirst({
-          where: {
-            hostname: requestHost,
-            status: { in: ['ACTIVE', 'VERIFIED'] },
+      // Check In-Memory LRU Cache first for sub-millisecond execution (< 1ms, 0 DB queries)
+      const cached = redirectCache.get(requestHost, code);
+      if (cached === null) {
+        // Negative cache hit (verified 404 in LRU memory within 15s)
+        res.status(404).json({
+          error: {
+            code: 'LINK_NOT_FOUND',
+            message: 'Short link not found',
+            requestId: req.id,
           },
-          select: { id: true, custom404Url: true },
         });
+        return;
       }
 
-      // Fast, indexed database query
-      let link: {
-        id: string;
-        destinationUrl: string;
-        isActive: boolean;
-        expiresAt: Date | null;
-      } | null = null;
+      let link: CachedRedirectLink | null = cached || null;
+      let customDomain: { id: string; custom404Url: string | null } | null = null;
 
-      if (customDomain) {
-        link = await prisma.link.findFirst({
-          where: {
-            code,
-            customDomainId: customDomain.id,
-          },
-          select: {
-            id: true,
-            destinationUrl: true,
-            isActive: true,
-            expiresAt: true,
-          },
-        });
-      } else {
-        link = await prisma.link.findUnique({
-          where: { code },
-          select: {
-            id: true,
-            destinationUrl: true,
-            isActive: true,
-            expiresAt: true,
-          },
-        });
+      if (!link) {
+        const isPlatformHost =
+          requestHost === 'localhost' ||
+          requestHost === '127.0.0.1' ||
+          requestHost === 'apiref.softics.in' ||
+          requestHost === 'urlref.softics.in';
+
+        if (!isPlatformHost) {
+          customDomain = await prisma.customDomain.findFirst({
+            where: {
+              hostname: requestHost,
+              status: { in: ['ACTIVE', 'VERIFIED'] },
+            },
+            select: { id: true, custom404Url: true },
+          });
+        }
+
+        // Fast, indexed database query
+        if (customDomain) {
+          link = await prisma.link.findFirst({
+            where: {
+              code,
+              customDomainId: customDomain.id,
+            },
+            select: {
+              id: true,
+              destinationUrl: true,
+              isActive: true,
+              expiresAt: true,
+            },
+          });
+        } else {
+          link = await prisma.link.findUnique({
+            where: { code },
+            select: {
+              id: true,
+              destinationUrl: true,
+              isActive: true,
+              expiresAt: true,
+            },
+          });
+        }
+
+        // Populate in-memory LRU cache on positive match or negative miss
+        if (link) {
+          redirectCache.set(requestHost, code, {
+            id: link.id,
+            destinationUrl: link.destinationUrl,
+            isActive: link.isActive,
+            expiresAt: link.expiresAt,
+            custom404Url: customDomain?.custom404Url,
+          });
+        } else if (!customDomain?.custom404Url) {
+          // Negative cache 404 for 15s to absorb brute force and scraping scans
+          redirectCache.setNotFound(requestHost, code, 15000);
+        }
       }
 
       if (!link) {
-        if (customDomain && customDomain.custom404Url) {
-          res.redirect(302, customDomain.custom404Url);
+        const fallback404 = customDomain?.custom404Url || cached?.custom404Url;
+        if (fallback404) {
+          res.redirect(302, fallback404);
           return;
         }
 
@@ -120,6 +150,7 @@ export class RedirectController {
         Location: link.destinationUrl,
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         Pragma: 'no-cache',
+        'X-Robots-Tag': 'noindex, nofollow',
       });
       res.status(302).end();
 

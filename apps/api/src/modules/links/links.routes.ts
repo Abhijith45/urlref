@@ -27,6 +27,7 @@ router.use(requireAuth);
 
 router.post('/claim', LinksController.claimLinks);
 router.get('/quota', LinksController.getUserQuota);
+router.post('/bulk', LinksController.bulkImportLinks);
 router.post('/', LinksController.createLink);
 router.get('/', LinksController.listLinks);
 router.get('/:id', LinksController.getLink);

@@ -1,5 +1,6 @@
 import { prisma } from '../../database/db';
 import { NotFoundError } from '../../errors/app-error';
+import { AnalyticsRetentionService } from './analytics-retention.service';
 import {
   ClickSeriesItem,
   DashboardOverviewDto,
@@ -29,33 +30,74 @@ export class AnalyticsService {
       throw new NotFoundError('Link not found or access unauthorized');
     }
 
-    const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const retentionCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const fromDate = from
+      ? new Date(Math.max(new Date(from).getTime(), retentionCutoff.getTime()))
+      : retentionCutoff;
     const toDate = to ? new Date(to) : new Date();
 
-    const events = await prisma.clickEvent.findMany({
-      where: {
-        linkId,
-        clickedAt: {
-          gte: fromDate,
-          lte: toDate,
-        },
+    const whereClause = {
+      linkId,
+      clickedAt: {
+        gte: fromDate,
+        lte: toDate,
       },
-      select: {
-        clickedAt: true,
-        referrer: true,
-        deviceType: true,
-        countryCode: true,
-      },
-      orderBy: { clickedAt: 'asc' },
-    });
+    };
+
+    // Parallel database aggregations keep heap memory bounded and prevent OOM container crashes
+    const [totalClicks, deviceGroups, referrerGroups, countryGroups, timeSeriesEvents] =
+      await Promise.all([
+        prisma.clickEvent.count({ where: whereClause }),
+        prisma.clickEvent.groupBy({
+          by: ['deviceType'],
+          where: whereClause,
+          _count: { id: true },
+        }),
+        prisma.clickEvent.groupBy({
+          by: ['referrer'],
+          where: whereClause,
+          _count: { id: true },
+          orderBy: { _count: { id: 'desc' } },
+          take: 10,
+        }),
+        prisma.clickEvent.groupBy({
+          by: ['countryCode'],
+          where: { ...whereClause, countryCode: { not: null } },
+          _count: { id: true },
+          orderBy: { _count: { id: 'desc' } },
+          take: 10,
+        }),
+        prisma.clickEvent.findMany({
+          where: whereClause,
+          select: { clickedAt: true },
+          orderBy: { clickedAt: 'asc' },
+        }),
+      ]);
+
+    const deviceDistribution: DeviceDistributionItem[] = deviceGroups.map((g) => ({
+      deviceType: g.deviceType || 'desktop',
+      clicks: g._count.id,
+    }));
+
+    const trafficSources: TrafficSourceItem[] = referrerGroups.map((g) => ({
+      referrer: g.referrer || 'direct',
+      clicks: g._count.id,
+    }));
+
+    const geographicDistribution: GeographicDistributionItem[] = countryGroups
+      .filter((g) => g.countryCode !== null)
+      .map((g) => ({
+        countryCode: g.countryCode as string,
+        clicks: g._count.id,
+      }));
 
     return {
       linkId,
-      totalClicks: events.length,
-      series: this.aggregateTimeSeries(events),
-      trafficSources: this.aggregateTrafficSources(events),
-      deviceDistribution: this.aggregateDevices(events),
-      geographicDistribution: this.aggregateCountries(events),
+      totalClicks,
+      series: this.aggregateTimeSeries(timeSeriesEvents),
+      trafficSources,
+      deviceDistribution,
+      geographicDistribution,
     };
   }
 
@@ -67,7 +109,10 @@ export class AnalyticsService {
     from?: string,
     to?: string,
   ): Promise<DashboardOverviewDto> {
-    const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const retentionCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const fromDate = from
+      ? new Date(Math.max(new Date(from).getTime(), retentionCutoff.getTime()))
+      : retentionCutoff;
     const toDate = to ? new Date(to) : new Date();
 
     const [totalLinks, userLinks] = await Promise.all([
@@ -91,31 +136,125 @@ export class AnalyticsService {
       };
     }
 
-    const events = await prisma.clickEvent.findMany({
-      where: {
-        linkId: { in: linkIds },
-        clickedAt: {
-          gte: fromDate,
-          lte: toDate,
-        },
+    const whereClause = {
+      linkId: { in: linkIds },
+      clickedAt: {
+        gte: fromDate,
+        lte: toDate,
       },
+    };
+
+    // Parallel database aggregations across user links
+    const [totalClicks, deviceGroups, referrerGroups, countryGroups, timeSeriesEvents] =
+      await Promise.all([
+        prisma.clickEvent.count({ where: whereClause }),
+        prisma.clickEvent.groupBy({
+          by: ['deviceType'],
+          where: whereClause,
+          _count: { id: true },
+        }),
+        prisma.clickEvent.groupBy({
+          by: ['referrer'],
+          where: whereClause,
+          _count: { id: true },
+          orderBy: { _count: { id: 'desc' } },
+          take: 10,
+        }),
+        prisma.clickEvent.groupBy({
+          by: ['countryCode'],
+          where: { ...whereClause, countryCode: { not: null } },
+          _count: { id: true },
+          orderBy: { _count: { id: 'desc' } },
+          take: 10,
+        }),
+        prisma.clickEvent.findMany({
+          where: whereClause,
+          select: { clickedAt: true },
+          orderBy: { clickedAt: 'asc' },
+        }),
+      ]);
+
+    const deviceDistribution: DeviceDistributionItem[] = deviceGroups.map((g) => ({
+      deviceType: g.deviceType || 'desktop',
+      clicks: g._count.id,
+    }));
+
+    const trafficSources: TrafficSourceItem[] = referrerGroups.map((g) => ({
+      referrer: g.referrer || 'direct',
+      clicks: g._count.id,
+    }));
+
+    const geographicDistribution: GeographicDistributionItem[] = countryGroups
+      .filter((g) => g.countryCode !== null)
+      .map((g) => ({
+        countryCode: g.countryCode as string,
+        clicks: g._count.id,
+      }));
+
+    return {
+      totalLinks,
+      totalClicks,
+      clicksOverTime: this.aggregateTimeSeries(timeSeriesEvents),
+      trafficSources,
+      deviceDistribution,
+      geographicDistribution,
+    };
+  }
+
+  /**
+   * Generates a 30-day CSV analytics export report for a single link or all links owned by the user.
+   */
+  public static async exportAnalyticsCsv(
+    userId: string,
+    linkId?: string,
+  ): Promise<{ filename: string; csv: string }> {
+    const retentionCutoff = new Date(
+      Date.now() - AnalyticsRetentionService.RETENTION_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    let filename = 'urlref_dashboard_analytics_30d.csv';
+    let whereClause: any = {
+      link: { userId },
+      clickedAt: { gte: retentionCutoff },
+    };
+
+    if (linkId) {
+      const link = await prisma.link.findFirst({
+        where: { id: linkId, userId },
+        select: { id: true, code: true },
+      });
+
+      if (!link) {
+        throw new NotFoundError('Link not found or access unauthorized');
+      }
+
+      filename = `urlref_${link.code}_analytics_30d.csv`;
+      whereClause = {
+        linkId,
+        clickedAt: { gte: retentionCutoff },
+      };
+    }
+
+    const events = await prisma.clickEvent.findMany({
+      where: whereClause,
       select: {
         clickedAt: true,
+        link: {
+          select: {
+            code: true,
+            destinationUrl: true,
+          },
+        },
         referrer: true,
         deviceType: true,
         countryCode: true,
       },
-      orderBy: { clickedAt: 'asc' },
+      orderBy: { clickedAt: 'desc' },
+      take: 50000,
     });
 
-    return {
-      totalLinks,
-      totalClicks: events.length,
-      clicksOverTime: this.aggregateTimeSeries(events),
-      trafficSources: this.aggregateTrafficSources(events),
-      deviceDistribution: this.aggregateDevices(events),
-      geographicDistribution: this.aggregateCountries(events),
-    };
+    const csv = AnalyticsRetentionService.buildCsvReport(events);
+    return { filename, csv };
   }
 
   private static aggregateTimeSeries(
@@ -129,54 +268,5 @@ export class AnalyticsService {
     }
 
     return Array.from(map.entries()).map(([date, clicks]) => ({ date, clicks }));
-  }
-
-  private static aggregateTrafficSources(
-    events: Array<{ referrer: string | null }>,
-  ): TrafficSourceItem[] {
-    const map = new Map<string, number>();
-
-    for (const event of events) {
-      const source = event.referrer || 'direct';
-      map.set(source, (map.get(source) || 0) + 1);
-    }
-
-    return Array.from(map.entries())
-      .map(([referrer, clicks]) => ({ referrer, clicks }))
-      .sort((a, b) => b.clicks - a.clicks)
-      .slice(0, 10);
-  }
-
-  private static aggregateDevices(
-    events: Array<{ deviceType: string | null }>,
-  ): DeviceDistributionItem[] {
-    const map = new Map<string, number>();
-
-    for (const event of events) {
-      const dev = event.deviceType || 'desktop';
-      map.set(dev, (map.get(dev) || 0) + 1);
-    }
-
-    return Array.from(map.entries()).map(([deviceType, clicks]) => ({
-      deviceType,
-      clicks,
-    }));
-  }
-
-  private static aggregateCountries(
-    events: Array<{ countryCode: string | null }>,
-  ): GeographicDistributionItem[] {
-    const map = new Map<string, number>();
-
-    for (const event of events) {
-      if (event.countryCode) {
-        map.set(event.countryCode, (map.get(event.countryCode) || 0) + 1);
-      }
-    }
-
-    return Array.from(map.entries())
-      .map(([countryCode, clicks]) => ({ countryCode, clicks }))
-      .sort((a, b) => b.clicks - a.clicks)
-      .slice(0, 10);
   }
 }

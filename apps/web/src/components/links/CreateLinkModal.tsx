@@ -14,23 +14,33 @@ import {
   MenuItem,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../../services/api-client';
+import { apiClient, ApiError } from '../../services/api-client';
 import { LinkDto, CustomDomainDto } from '@shortener/shared';
+import { toast } from 'react-toastify';
+import { UtmBuilderAccordion, UtmValues } from './UtmBuilderAccordion';
 
 interface CreateLinkModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess: (link: LinkDto) => void;
+  onUpgradeRequired?: () => void;
 }
 
-export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ open, onClose, onSuccess }) => {
+export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({
+  open,
+  onClose,
+  onSuccess,
+  onUpgradeRequired,
+}) => {
   const [destinationUrl, setDestinationUrl] = useState('');
   const [customAlias, setCustomAlias] = useState('');
   const [title, setTitle] = useState('');
   const [selectedDomainId, setSelectedDomainId] = useState<string>('');
   const [expiresAt, setExpiresAt] = useState('');
+  const [utmParams, setUtmParams] = useState<UtmValues>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRateLimited, setIsRateLimited] = useState(false);
 
   // Fetch verified user custom domains
   const { data: domains } = useQuery<CustomDomainDto[]>({
@@ -48,6 +58,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ open, onClose,
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setIsRateLimited(false);
 
     try {
       const payload: Record<string, unknown> = {
@@ -56,10 +67,16 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ open, onClose,
         customAlias: customAlias.trim() || undefined,
         customDomainId: selectedDomainId || undefined,
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+        utmSource: utmParams.utmSource?.trim() || undefined,
+        utmMedium: utmParams.utmMedium?.trim() || undefined,
+        utmCampaign: utmParams.utmCampaign?.trim() || undefined,
+        utmTerm: utmParams.utmTerm?.trim() || undefined,
+        utmContent: utmParams.utmContent?.trim() || undefined,
       };
 
       const response = await apiClient.post<{ data: LinkDto }>('/api/v1/links', payload);
       onSuccess(response.data.data);
+      toast.success('Short link created successfully!');
       onClose();
       // Reset form
       setDestinationUrl('');
@@ -67,8 +84,12 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ open, onClose,
       setTitle('');
       setSelectedDomainId('');
       setExpiresAt('');
+      setUtmParams({});
     } catch (err: unknown) {
-      if (err instanceof Error) {
+      if (err instanceof ApiError && err.code === 'RATE_LIMITED') {
+        setIsRateLimited(true);
+        setError(err.message);
+      } else if (err instanceof Error) {
         setError(err.message);
       } else {
         setError('Failed to create short link');
@@ -83,7 +104,28 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ open, onClose,
       <DialogTitle sx={{ fontWeight: 700 }}>Create New Short Link</DialogTitle>
       <Box component="form" onSubmit={handleSubmit}>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
-          {error && <Alert severity="error">{error}</Alert>}
+          {error && (
+            <Alert
+              severity={isRateLimited ? 'warning' : 'error'}
+              action={
+                isRateLimited && onUpgradeRequired ? (
+                  <Button
+                    color="inherit"
+                    size="small"
+                    onClick={() => {
+                      onClose();
+                      onUpgradeRequired();
+                    }}
+                    sx={{ fontWeight: 600, textTransform: 'none' }}
+                  >
+                    Upgrade Plan
+                  </Button>
+                ) : undefined
+              }
+            >
+              {error}
+            </Alert>
+          )}
 
           <TextField
             label="Destination URL"
@@ -147,6 +189,13 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ open, onClose,
             fullWidth
             value={expiresAt}
             onChange={(e) => setExpiresAt(e.target.value)}
+            disabled={loading}
+          />
+
+          <UtmBuilderAccordion
+            value={utmParams}
+            destinationUrl={destinationUrl}
+            onChange={setUtmParams}
             disabled={loading}
           />
         </DialogContent>

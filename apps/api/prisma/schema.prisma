@@ -78,6 +78,11 @@ model Link {
   destinationUrl String    @map("destination_url") @db.Text
   isActive       Boolean   @default(true) @map("is_active")
   expiresAt      DateTime? @map("expires_at") @db.Timestamptz(6)
+  utmSource      String?   @map("utm_source") @db.VarChar(128)
+  utmMedium      String?   @map("utm_medium") @db.VarChar(128)
+  utmCampaign    String?   @map("utm_campaign") @db.VarChar(128)
+  utmTerm        String?   @map("utm_term") @db.VarChar(128)
+  utmContent     String?   @map("utm_content") @db.VarChar(128)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -86,6 +91,7 @@ model Link {
   clickEvents  ClickEvent[]
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, utmCampaign])
   @@index([customDomainId])
   @@index([expiresAt])
   @@map("links")
@@ -103,4 +109,12 @@ model ClickEvent {
 
   @@index([linkId, clickedAt(sort: Desc)])
   @@map("click_events")
+}
+
+model WebhookEvent {
+  id          String   @id @db.VarChar(128)
+  type        String   @db.VarChar(128)
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
+
+  @@map("webhook_events")
 }

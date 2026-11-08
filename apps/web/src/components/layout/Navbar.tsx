@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -13,34 +13,35 @@ import {
   ListItemText,
   Button,
 } from '@mui/material';
-import { Link2, LogOut, User as UserIcon, CreditCard, Sparkles } from 'lucide-react';
+import { Link2, LogOut, User as UserIcon, CreditCard, Sparkles, Menu as MenuIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../services/api-client';
 import { SubscriptionStatusDto } from '@shortener/shared';
 import { BillingModal } from '../billing/BillingModal';
 
-export const Navbar: React.FC = () => {
+interface NavbarProps {
+  onMobileNavToggle?: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ onMobileNavToggle }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [billingOpen, setBillingOpen] = useState(false);
-  const [subscription, setSubscription] = useState<SubscriptionStatusDto | null>(null);
 
-  const fetchSubscription = async () => {
-    if (!user) return;
-    try {
+  // Cached subscription query with 10-minute staleTime prevents redundant network calls on route transitions
+  const { data: subscription, refetch: refetchSubscription } = useQuery<SubscriptionStatusDto | null>({
+    queryKey: ['billing', 'subscription'],
+    queryFn: async () => {
       const res = await apiClient.get<{ data: SubscriptionStatusDto }>('/api/v1/billing/subscription');
-      setSubscription(res.data.data);
-    } catch {
-      // Ignore background subscription load error
-    }
-  };
-
-  useEffect(() => {
-    fetchSubscription();
-  }, [user, location.search]);
+      return res.data.data;
+    },
+    enabled: !!user,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000,
+  });
 
   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -68,31 +69,51 @@ export const Navbar: React.FC = () => {
       }}
     >
       <Toolbar sx={{ justifyContent: 'space-between', height: 64, px: { xs: 2, sm: 4 } }}>
-        <Box
-          sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer' }}
-          onClick={() => navigate('/dashboard')}
-        >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {user && (
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={onMobileNavToggle}
+              sx={{
+                display: { xs: 'inline-flex', md: 'none' },
+                minWidth: 44,
+                minHeight: 44,
+                p: 1,
+                color: '#1C2411',
+              }}
+            >
+              <MenuIcon size={22} />
+            </IconButton>
+          )}
+
           <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 38,
-              height: 38,
-              borderRadius: '8px',
-              bgcolor: '#587529',
-              color: '#ffffff',
-            }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer' }}
+            onClick={() => navigate('/dashboard')}
           >
-            <Link2 size={20} />
-          </Box>
-          <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 800, color: '#1C2411', display: 'flex', alignItems: 'center', gap: 0.8 }}>
-              URLRef
-              <Box component="span" sx={{ fontSize: '0.7rem', bgcolor: '#EDDA5E', color: '#1C2411', px: 0.8, py: 0.2, borderRadius: 1, fontWeight: 700 }}>
-                Softics
-              </Box>
-            </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 38,
+                height: 38,
+                borderRadius: '8px',
+                bgcolor: '#587529',
+                color: '#ffffff',
+              }}
+            >
+              <Link2 size={20} />
+            </Box>
+            <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: '#1C2411', display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                URLRef
+                <Box component="span" sx={{ fontSize: '0.7rem', bgcolor: '#EDDA5E', color: '#1C2411', px: 0.8, py: 0.2, borderRadius: 1, fontWeight: 700 }}>
+                  Softics
+                </Box>
+              </Typography>
+            </Box>
           </Box>
         </Box>
 
@@ -194,7 +215,7 @@ export const Navbar: React.FC = () => {
               open={billingOpen}
               onClose={() => setBillingOpen(false)}
               subscription={subscription}
-              onRefresh={fetchSubscription}
+              onRefresh={() => refetchSubscription()}
             />
           </Box>
         )}

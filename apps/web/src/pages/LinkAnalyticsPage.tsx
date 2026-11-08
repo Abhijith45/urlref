@@ -1,50 +1,136 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import {
   Box,
   Typography,
   Card,
   CardContent,
   Grid,
-  Chip,
-  Breadcrumbs,
-  Link as MuiLink,
   CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Button,
-  Tooltip,
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/api-client';
 import { queryKeys } from '../services/query-keys';
 import { LinkAnalyticsDto, LinkDto } from '@shortener/shared';
-import { ArrowLeft, ExternalLink, MousePointerClick, Smartphone, Globe, Compass, Copy, Check, QrCode } from 'lucide-react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from 'recharts';
+import { ExternalLink, MousePointerClick, Smartphone, Globe, Compass, Copy, QrCode } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { AnalyticsCard, AnalyticsMetricsCard } from '../components/analytics/AnalyticsShared';
+import { LinkAnalyticsHeader } from '../components/analytics/LinkAnalyticsHeader';
 
-const COLORS = ['#587529', '#F4BE38', '#71951E', '#EDDA5E', '#8E6210'];
+const ClicksAreaChart = lazy(() =>
+  import('../components/analytics/AnalyticsCharts').then((m) => ({ default: m.ClicksAreaChart }))
+);
+const DevicePieChart = lazy(() =>
+  import('../components/analytics/AnalyticsCharts').then((m) => ({ default: m.DevicePieChart }))
+);
+
+const ZeroClicksCard: React.FC<{
+  linkData: LinkDto | undefined;
+  onCopy: () => void;
+  onDesignQr: () => void;
+}> = ({ linkData, onCopy, onDesignQr }) => (
+  <Card
+    sx={{
+      mb: 4,
+      p: 3,
+      bgcolor: '#ffffff',
+      borderRadius: 1.25,
+      border: '1px solid #E4E9DC',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.02)',
+      textAlign: 'center',
+    }}
+  >
+    <Box
+      sx={{
+        width: 52,
+        height: 52,
+        borderRadius: '50%',
+        bgcolor: 'rgba(88, 117, 41, 0.1)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        mx: 'auto',
+        mb: 2,
+      }}
+    >
+      <MousePointerClick size={24} color="#587529" />
+    </Box>
+    <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: '#1C2411' }}>
+      No clicks recorded for this link yet
+    </Typography>
+    <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 520, mx: 'auto', mb: 3, lineHeight: 1.6 }}>
+      Share your link on WhatsApp, Twitter, LinkedIn, or generate a custom QR code to start tracking visitor engagement and geolocations.
+    </Typography>
+    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
+      <Button
+        variant="contained"
+        disableElevation
+        disableRipple
+        startIcon={<Copy size={16} />}
+        onClick={onCopy}
+        sx={{ textTransform: 'none', fontWeight: 700 }}
+      >
+        Copy short link
+      </Button>
+      <Button
+        variant="outlined"
+        disableElevation
+        disableRipple
+        startIcon={<QrCode size={16} />}
+        onClick={onDesignQr}
+        sx={{ textTransform: 'none', fontWeight: 600 }}
+      >
+        Design QR code
+      </Button>
+      {linkData && (
+        <Button
+          variant="text"
+          disableElevation
+          disableRipple
+          startIcon={<ExternalLink size={16} />}
+          component="a"
+          href={linkData.shortUrl}
+          target="_blank"
+          rel="noreferrer"
+          sx={{ textTransform: 'none', fontWeight: 600, color: 'text.secondary' }}
+        >
+          Test redirect
+        </Button>
+      )}
+    </Box>
+  </Card>
+);
 
 export const LinkAnalyticsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportCsv = async () => {
+    if (!id) return;
+    setIsExporting(true);
+    try {
+      const response = await apiClient.get<string>(`/api/v1/analytics/${id}/export`, {
+        responseType: 'text',
+      });
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `urlref_${linkData?.code || 'link'}_analytics_30d.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('Link analytics CSV report downloaded successfully!');
+    } catch {
+      toast.error('Failed to export link analytics report.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Fetch link details
   const { data: linkData } = useQuery({
@@ -96,176 +182,34 @@ export const LinkAnalyticsPage: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
-      <Breadcrumbs sx={{ mb: 2 }}>
-        <MuiLink
-          component="button"
-          underline="hover"
-          color="inherit"
-          onClick={() => navigate('/dashboard/links')}
-          sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.875rem' }}
-        >
-          <ArrowLeft size={14} /> Back to links
-        </MuiLink>
-        <Typography color="text.primary" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
-          /{linkData?.code || 'Analytics'}
-        </Typography>
-      </Breadcrumbs>
-
-      {/* Header Info */}
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5, color: '#1C2411' }}>
-            Link analytics: /{linkData?.code}
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}
-          >
-            Redirecting to: <span style={{ fontWeight: 600, color: '#1C2411' }}>{linkData?.destinationUrl}</span>
-            {linkData?.destinationUrl && (
-              <a href={linkData.destinationUrl} target="_blank" rel="noreferrer" style={{ color: '#587529' }}>
-                <ExternalLink size={14} />
-              </a>
-            )}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-          {linkData && (
-            <Tooltip title={copied ? 'Copied to clipboard!' : 'Copy short link'}>
-              <Button
-                variant="outlined"
-                size="small"
-                disableElevation
-                disableRipple
-                startIcon={copied ? <Check size={14} color="#71951E" /> : <Copy size={14} />}
-                onClick={handleCopy}
-                sx={{ textTransform: 'none', fontWeight: 600 }}
-              >
-                {copied ? 'Copied' : 'Copy link'}
-              </Button>
-            </Tooltip>
-          )}
-          <Chip
-            icon={<MousePointerClick size={16} />}
-            label={`${totalClicks} Total Clicks`}
-            color="primary"
-            sx={{ fontWeight: 700, px: 1, fontFamily: 'Geist Mono, monospace' }}
-          />
-        </Box>
-      </Box>
+      <LinkAnalyticsHeader
+        linkData={linkData}
+        totalClicks={totalClicks}
+        copied={copied}
+        onCopy={handleCopy}
+        onBack={() => navigate('/dashboard/links')}
+        onExport={handleExportCsv}
+        isExporting={isExporting}
+      />
 
       {/* Zero Clicks Retention Card */}
       {totalClicks === 0 && (
-        <Card
-          sx={{
-            mb: 4,
-            p: 3,
-            bgcolor: '#ffffff',
-            borderRadius: 3,
-            border: '1px solid #E4E9DC',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.02)',
-            textAlign: 'center',
-          }}
-        >
-          <Box
-            sx={{
-              width: 52,
-              height: 52,
-              borderRadius: '50%',
-              bgcolor: 'rgba(88, 117, 41, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mx: 'auto',
-              mb: 2,
-            }}
-          >
-            <MousePointerClick size={24} color="#587529" />
-          </Box>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: '#1C2411' }}>
-            No clicks recorded for this link yet
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 520, mx: 'auto', mb: 3, lineHeight: 1.6 }}>
-            Share your link on WhatsApp, Twitter, LinkedIn, or generate a custom QR code to start tracking visitor engagement and geolocations.
-          </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <Button
-              variant="contained"
-              disableElevation
-              disableRipple
-              startIcon={<Copy size={16} />}
-              onClick={handleCopy}
-              sx={{ textTransform: 'none', fontWeight: 700 }}
-            >
-              Copy short link
-            </Button>
-            <Button
-              variant="outlined"
-              disableElevation
-              disableRipple
-              startIcon={<QrCode size={16} />}
-              onClick={() => navigate('/dashboard/qr')}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
-            >
-              Design QR code
-            </Button>
-            {linkData && (
-              <Button
-                variant="text"
-                disableElevation
-                disableRipple
-                startIcon={<ExternalLink size={16} />}
-                component="a"
-                href={linkData.shortUrl}
-                target="_blank"
-                rel="noreferrer"
-                sx={{ textTransform: 'none', fontWeight: 600, color: 'text.secondary' }}
-              >
-                Test redirect
-              </Button>
-            )}
-          </Box>
-        </Card>
+        <ZeroClicksCard
+          linkData={linkData}
+          onCopy={handleCopy}
+          onDesignQr={() => navigate('/dashboard/qr')}
+        />
       )}
 
       {/* Clicks Over Time Area Chart */}
-      <Card sx={{ mb: 4, p: 1, border: '1px solid #E4E9DC', borderRadius: 3, boxShadow: 'none' }}>
+      <Card sx={{ mb: 4, p: 1, border: '1px solid #E4E9DC', borderRadius: 1.25, boxShadow: 'none' }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2, color: '#1C2411' }}>
             Clicks over time (last 30 days)
           </Typography>
-          {analytics?.series && analytics.series.length > 0 ? (
-            <Box sx={{ width: '100%', height: 300 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={analytics.series} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#587529" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#587529" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E9DC" />
-                  <XAxis dataKey="date" stroke="#556345" fontSize={12} tickLine={false} />
-                  <YAxis stroke="#556345" fontSize={12} allowDecimals={false} tickLine={false} />
-                  <RechartsTooltip />
-                  <Area
-                    type="monotone"
-                    dataKey="clicks"
-                    stroke="#587529"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorClicks)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </Box>
-          ) : (
-            <Box sx={{ textAlign: 'center', py: 6 }}>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                No clicks recorded for this link yet.
-              </Typography>
-            </Box>
-          )}
+          <Suspense fallback={<Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress size={24} color="inherit" /></Box>}>
+            <ClicksAreaChart series={analytics?.series} emptyMessage="No clicks recorded for this link yet." height={300} />
+          </Suspense>
         </CardContent>
       </Card>
 
@@ -273,129 +217,41 @@ export const LinkAnalyticsPage: React.FC = () => {
       <Grid container spacing={3}>
         {/* Device Breakdown */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%', p: 1, border: '1px solid #E4E9DC', borderRadius: 3, boxShadow: 'none' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Smartphone size={20} color="#587529" />
-                <Typography variant="h6" sx={{ fontWeight: 700, color: '#1C2411' }}>
-                  Device breakdown
-                </Typography>
-              </Box>
-              {deviceData.length > 0 ? (
-                <Box sx={{ width: '100%', height: 260 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={deviceData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {deviceData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </Box>
-              ) : (
-                <Box sx={{ textAlign: 'center', py: 6 }}>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    No device data recorded yet.
-                  </Typography>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
+          <AnalyticsCard icon={<Smartphone size={20} color="#587529" />} title="Device breakdown">
+            <Suspense fallback={<Box sx={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress size={24} color="inherit" /></Box>}>
+              <DevicePieChart data={deviceData} emptyMessage="No device data recorded yet." height={260} />
+            </Suspense>
+          </AnalyticsCard>
         </Grid>
 
         {/* Top Traffic Referrers */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%', p: 1, border: '1px solid #E4E9DC', borderRadius: 3, boxShadow: 'none' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Compass size={20} color="#587529" />
-                <Typography variant="h6" sx={{ fontWeight: 700, color: '#1C2411' }}>
-                  Top traffic sources
-                </Typography>
-              </Box>
-              {analytics?.trafficSources && analytics.trafficSources.length > 0 ? (
-                <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #E4E9DC' }}>
-                  <Table size="small">
-                    <TableHead sx={{ bgcolor: 'background.default' }}>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 700 }}>Referrer domain</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700 }}>Clicks</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {analytics.trafficSources.map((source) => (
-                        <TableRow key={source.referrer}>
-                          <TableCell sx={{ fontWeight: 600 }}>{source.referrer}</TableCell>
-                          <TableCell align="right">
-                            <Chip label={source.clicks} size="small" variant="outlined" sx={{ fontWeight: 600, fontFamily: 'Geist Mono, monospace' }} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              ) : (
-                <Box sx={{ textAlign: 'center', py: 6 }}>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    No referrer data recorded yet (e.g. direct traffic).
-                  </Typography>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
+          <AnalyticsMetricsCard
+            icon={<Compass size={20} color="#587529" />}
+            title="Top traffic sources"
+            columnHeader="Referrer domain"
+            rows={analytics?.trafficSources?.map((source) => ({
+              key: source.referrer,
+              label: source.referrer,
+              clicks: source.clicks,
+            }))}
+            emptyMessage="No referrer data recorded yet (e.g. direct traffic)."
+          />
         </Grid>
 
         {/* Geographic Breakdown */}
         <Grid item xs={12}>
-          <Card sx={{ p: 1, border: '1px solid #E4E9DC', borderRadius: 3, boxShadow: 'none' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Globe size={20} color="#587529" />
-                <Typography variant="h6" sx={{ fontWeight: 700, color: '#1C2411' }}>
-                  Geographic distribution (ISO country code)
-                </Typography>
-              </Box>
-              {analytics?.geographicDistribution && analytics.geographicDistribution.length > 0 ? (
-                <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #E4E9DC' }}>
-                  <Table size="small">
-                    <TableHead sx={{ bgcolor: 'background.default' }}>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 700 }}>Country code</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700 }}>Clicks</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {analytics.geographicDistribution.map((geo) => (
-                        <TableRow key={geo.countryCode}>
-                          <TableCell sx={{ fontWeight: 600 }}>{geo.countryCode}</TableCell>
-                          <TableCell align="right">
-                            <Chip label={geo.clicks} size="small" variant="outlined" sx={{ fontWeight: 600, fontFamily: 'Geist Mono, monospace' }} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              ) : (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    No geographic data available for this link.
-                  </Typography>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
+          <AnalyticsMetricsCard
+            icon={<Globe size={20} color="#587529" />}
+            title="Geographic distribution (ISO country code)"
+            columnHeader="Country code"
+            rows={analytics?.geographicDistribution?.map((geo) => ({
+              key: geo.countryCode,
+              label: geo.countryCode,
+              clicks: geo.clicks,
+            }))}
+            emptyMessage="No geographic data available for this link."
+          />
         </Grid>
       </Grid>
     </Box>

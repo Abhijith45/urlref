@@ -29,6 +29,57 @@ interface QuotaResponse {
   resetAt: string;
 }
 
+const CreatedLinkResult: React.FC<{ link: LinkDto }> = ({ link }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(link.shortUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Box
+      sx={{
+        mt: 3,
+        p: 2,
+        borderRadius: 2,
+        backgroundColor: 'rgba(88, 117, 41, 0.08)',
+        border: '1px solid rgba(88, 117, 41, 0.25)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 2,
+      }}
+    >
+      <Box>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+          Newly Shortened URL:
+        </Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'primary.main', wordBreak: 'break-all' }}>
+          {link.shortUrl}
+        </Typography>
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <Tooltip title={copied ? 'Copied!' : 'Copy to clipboard'}>
+          <Button
+            variant="outlined"
+            size="small"
+            disableElevation
+            disableRipple
+            onClick={handleCopy}
+            startIcon={copied ? <Check size={16} color="#71951E" /> : <Copy size={16} />}
+          >
+            {copied ? 'Copied' : 'Copy'}
+          </Button>
+        </Tooltip>
+      </Box>
+    </Box>
+  );
+};
+
 export const QuickShortenWidget: React.FC<QuickShortenWidgetProps> = ({ onLinkCreated, onUpgradeClick }) => {
   const queryClient = useQueryClient();
   const [destinationUrl, setDestinationUrl] = useState('');
@@ -37,7 +88,6 @@ export const QuickShortenWidget: React.FC<QuickShortenWidgetProps> = ({ onLinkCr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdLink, setCreatedLink] = useState<LinkDto | null>(null);
-  const [copied, setCopied] = useState(false);
   const [billingOpen, setBillingOpen] = useState(false);
 
   // Fetch monthly quota
@@ -85,15 +135,6 @@ export const QuickShortenWidget: React.FC<QuickShortenWidgetProps> = ({ onLinkCr
     } finally {
       setLoading(false);
     }
-  };
-
-  const shortLinkUrl = createdLink ? createdLink.shortUrl : '';
-
-  const handleCopy = () => {
-    if (!shortLinkUrl) return;
-    navigator.clipboard.writeText(shortLinkUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -211,46 +252,7 @@ export const QuickShortenWidget: React.FC<QuickShortenWidgetProps> = ({ onLinkCr
           </Box>
         </Box>
 
-        {createdLink && (
-          <Box
-            sx={{
-              mt: 3,
-              p: 2,
-              borderRadius: 2,
-              backgroundColor: 'rgba(88, 117, 41, 0.08)',
-              border: '1px solid rgba(88, 117, 41, 0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 2,
-            }}
-          >
-            <Box>
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
-                Newly Shortened URL:
-              </Typography>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                {createdLink.shortUrl}
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title={copied ? 'Copied!' : 'Copy to clipboard'}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  disableElevation
-                  disableRipple
-                  onClick={handleCopy}
-                  startIcon={copied ? <Check size={16} color="#71951E" /> : <Copy size={16} />}
-                >
-                  {copied ? 'Copied' : 'Copy'}
-                </Button>
-              </Tooltip>
-            </Box>
-          </Box>
-        )}
+        {createdLink && <CreatedLinkResult link={createdLink} />}
       </CardContent>
 
       <BillingModal open={billingOpen} onClose={() => setBillingOpen(false)} />

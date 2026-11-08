@@ -8,6 +8,7 @@ import { requestIdMiddleware } from './middleware/request-id.middleware';
 import { requestLoggerMiddleware } from './middleware/logger.middleware';
 import { errorHandlerMiddleware } from './middleware/error.middleware';
 import healthRouter from './modules/health/health.routes';
+import { HealthController } from './modules/health/health.controller';
 import authRouter from './modules/auth/auth.routes';
 import linksRouter from './modules/links/links.routes';
 import { analyticsRouter } from './modules/analytics/analytics.routes';
@@ -86,7 +87,7 @@ export function createApp(): Express {
       const origin = req.headers.origin;
       const secFetchSite = req.headers['sec-fetch-site'];
 
-      if (secFetchSite === 'cross-site') {
+      if (secFetchSite === 'cross-site' && (!origin || !allowedOrigins.includes(origin))) {
         res.status(403).json({
           error: {
             code: 'FORBIDDEN',
@@ -114,7 +115,8 @@ export function createApp(): Express {
   // Health & Readiness probes (accessible at /health, /ready, and /api/v1/health)
   app.use('/health', healthRouter);
   app.use('/api/v1/health', healthRouter);
-  app.use('/', healthRouter);
+  app.get('/ready', HealthController.getReadiness);
+  app.get('/', HealthController.getLiveness);
 
   // API v1 Routes
   app.use('/api/v1/auth', authRouter);

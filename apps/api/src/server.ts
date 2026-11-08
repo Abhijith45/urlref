@@ -3,6 +3,8 @@ import { createApp } from './app';
 import { env } from './config/env';
 import { logger } from './utils/logger';
 import { disconnectDatabase } from './database/db';
+import { flushClickQueue } from './modules/redirects/click-dispatcher';
+import { AnalyticsRetentionService } from './modules/analytics/analytics-retention.service';
 
 const app = createApp();
 const server = http.createServer(app);
@@ -28,8 +30,9 @@ function gracefulShutdown(signal: string) {
       process.exit(1);
     }
 
-    logger.info('HTTP server closed. Disconnecting database pools...');
+    logger.info('HTTP server closed. Flushing click events and disconnecting database pools...');
     try {
+      await flushClickQueue();
       await disconnectDatabase();
       logger.info('Database disconnected cleanly. Exiting process.');
       clearTimeout(forceExitTimer);
@@ -68,6 +71,21 @@ server.listen(env.PORT, () => {
     },
     `Shortener API service successfully listening on port ${env.PORT}`,
   );
+
+  // Automated 30-day retention pruning of click events (runs every 24 hours)
+  const RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1000;
+  const retentionTimer = setInterval(() => {
+    AnalyticsRetentionService.pruneStaleClickEvents()
+      .then((prunedCount) => {
+        if (prunedCount > 0) {
+          logger.info({ prunedCount }, 'Daily 30-day click events retention pruning completed');
+        }
+      })
+      .catch((err) => {
+        logger.error({ err }, 'Daily 30-day click events retention pruning failed');
+      });
+  }, RETENTION_INTERVAL_MS);
+  retentionTimer.unref();
 });
 
 export { server, app };

@@ -17,6 +17,21 @@ declare global {
   }
 }
 
+// In-memory bounded LRU cache for clerkId -> local user mapping (60s TTL)
+// Drastically cuts redundant database lookups on concurrent API requests
+interface CachedUserSession {
+  id: string;
+  role: string;
+  expiresAtMs: number;
+}
+
+const userSessionCache = new Map<string, CachedUserSession>();
+const USER_CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+export function invalidateUserSessionCache(clerkUserId: string): void {
+  userSessionCache.delete(clerkUserId);
+}
+
 /**
  * Production-hardened authentication middleware supporting Clerk JWTs (Bearer)
  * with transparent local database user provisioning and dual-mode test fallback.
@@ -34,6 +49,16 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 
       if (auth && auth.userId) {
         const clerkUserId = auth.userId;
+
+        // Check in-memory session cache first (< 0.1ms, 0 DB queries)
+        const cachedSession = userSessionCache.get(clerkUserId);
+        if (cachedSession && Date.now() < cachedSession.expiresAtMs) {
+          req.user = {
+            id: cachedSession.id,
+            role: cachedSession.role,
+          };
+          return next();
+        }
 
         // Fast indexed lookup for local UUID
         let user = await prisma.user.findUnique({
@@ -75,6 +100,17 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
             throw new UnauthorizedError('Unable to authenticate user session');
           }
         }
+
+        // Cache resolved local user for 60 seconds
+        if (userSessionCache.size >= 1000) {
+          const oldest = userSessionCache.keys().next().value;
+          if (oldest) userSessionCache.delete(oldest);
+        }
+        userSessionCache.set(clerkUserId, {
+          id: user.id,
+          role: user.role,
+          expiresAtMs: Date.now() + USER_CACHE_TTL_MS,
+        });
 
         req.user = {
           id: user.id,

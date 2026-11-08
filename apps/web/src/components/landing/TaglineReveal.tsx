@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Box, Container, Typography } from '@mui/material';
 
 interface TaglineRevealProps {
@@ -9,14 +9,19 @@ export const TaglineReveal: React.FC<TaglineRevealProps> = ({
   phrase = 'Every link you share is a direct reflection of your brand. Turn long cluttered addresses into fast branded short links and high converting dynamic QR codes in seconds.',
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [activeWordCount, setActiveWordCount] = useState<number>(0);
-  const words = phrase.split(' ');
+  const [reducedMotion, setReducedMotion] = useState<boolean>(false);
+  const [revealedCount, setRevealedCount] = useState<number>(0);
+  const tokens = useMemo(
+    () => phrase.split(' ').map((w, i) => ({ id: `token-${i}-${w}`, text: w, index: i })),
+    [phrase]
+  );
+  const totalWords = tokens.length;
 
   useEffect(() => {
     // Check prefers-reduced-motion
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (mediaQuery.matches) {
-      setActiveWordCount(words.length);
+      setReducedMotion(true);
       return;
     }
 
@@ -38,13 +43,13 @@ export const TaglineReveal: React.FC<TaglineRevealProps> = ({
         const end = windowHeight * 0.35;
 
         if (rect.top > start) {
-          setActiveWordCount(0);
+          setRevealedCount(0);
         } else if (rect.top < end) {
-          setActiveWordCount(words.length);
+          setRevealedCount(totalWords);
         } else {
           const ratio = (start - rect.top) / (start - end);
-          const count = Math.min(words.length, Math.floor(ratio * words.length));
-          setActiveWordCount(count);
+          const count = Math.min(totalWords, Math.floor(ratio * totalWords));
+          setRevealedCount(count);
         }
       });
     };
@@ -58,7 +63,7 @@ export const TaglineReveal: React.FC<TaglineRevealProps> = ({
         cancelAnimationFrame(rafId);
       }
     };
-  }, [words.length]);
+  }, [totalWords]);
 
   return (
     <Box
@@ -100,12 +105,12 @@ export const TaglineReveal: React.FC<TaglineRevealProps> = ({
             gap: '0.3em',
           }}
         >
-          {words.map((word, index) => {
-            const isActive = index < activeWordCount;
+          {tokens.map((token) => {
+            const isActive = reducedMotion || token.index < revealedCount;
             return (
               <Box
                 component="span"
-                key={index}
+                key={token.id}
                 sx={{
                   display: 'inline-block',
                   color: isActive ? '#1C2411' : '#556345',
@@ -114,7 +119,7 @@ export const TaglineReveal: React.FC<TaglineRevealProps> = ({
                   transform: isActive ? 'translateY(0)' : 'translateY(2px)',
                 }}
               >
-                {word}
+                {token.text}
               </Box>
             );
           })}

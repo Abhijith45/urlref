@@ -63,6 +63,27 @@ export interface LinkDto {
     id: string;
     hostname: string;
   } | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  utmTerm?: string | null;
+  utmContent?: string | null;
+}
+
+export interface BulkImportRowResult {
+  rowNumber: number;
+  destinationUrl: string;
+  code?: string;
+  shortUrl?: string;
+  status: 'success' | 'failed';
+  error?: string;
+}
+
+export interface BulkImportResultDto {
+  totalRows: number;
+  successCount: number;
+  failureCount: number;
+  results: BulkImportRowResult[];
 }
 
 export interface ClickEventDto {

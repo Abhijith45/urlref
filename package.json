@@ -15,6 +15,10 @@
     "build:web": "npm run build -w packages/shared && npm run build -w apps/web",
     "db:migrate": "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma",
     "test": "npm run test --workspaces --if-present",
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test tests/e2e/smoke",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
@@ -27,6 +31,7 @@
     "typescript": "^5.7.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "prettier": "^3.4.2"
   }
 }

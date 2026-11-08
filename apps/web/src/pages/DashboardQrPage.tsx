@@ -29,7 +29,7 @@ export const DashboardQrPage: React.FC = () => {
         </Typography>
       </Box>
 
-      <Card sx={{ bgcolor: '#ffffff', borderRadius: 3, border: '1px solid #E4E9DC', boxShadow: 'none' }}>
+      <Card sx={{ bgcolor: '#ffffff', borderRadius: 1.25, border: '1px solid #E4E9DC', boxShadow: 'none' }}>
         <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
           <QrStudio onDynamicLinkCreated={handleDynamicLinkCreated} />
         </CardContent>

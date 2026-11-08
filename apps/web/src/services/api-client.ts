@@ -1,5 +1,19 @@
 import axios, { AxiosError } from 'axios';
 
+export class ApiError extends Error {
+  public readonly code?: string;
+  public readonly statusCode?: number;
+  public readonly details?: unknown[];
+
+  constructor(message: string, code?: string, statusCode?: number, details?: unknown[]) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.statusCode = statusCode;
+    this.details = details;
+  }
+}
+
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://apiref.softics.in' : 'http://localhost:5000');
 
@@ -36,6 +50,8 @@ apiClient.interceptors.response.use(
   (error: AxiosError<{ error?: { message?: string; code?: string; details?: unknown[] } }>) => {
     const errorData = error.response?.data?.error;
     const message = errorData?.message || error.message || 'An unexpected error occurred';
-    return Promise.reject(new Error(message));
+    return Promise.reject(
+      new ApiError(message, errorData?.code, error.response?.status, errorData?.details),
+    );
   },
 );

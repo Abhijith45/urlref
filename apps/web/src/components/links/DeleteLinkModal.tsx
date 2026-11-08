@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { apiClient } from '../../services/api-client';
 import { LinkDto } from '@shortener/shared';
+import { toast } from 'react-toastify';
 
 interface DeleteLinkModalProps {
   open: boolean;
@@ -36,6 +37,7 @@ export const DeleteLinkModal: React.FC<DeleteLinkModalProps> = ({
     try {
       await apiClient.delete(`/api/v1/links/${link.id}`);
       onSuccess(link.id);
+      toast.success('Short link deleted.');
       onClose();
     } catch (err: unknown) {
       if (err instanceof Error) {

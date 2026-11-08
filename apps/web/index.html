@@ -27,23 +27,35 @@
       property="og:description"
       content="Create short branded links and scannable dynamic QR codes with real time privacy centric metrics. Free 10 links and dynamic QRs every month."
     />
-    <meta property="og:image" content="https://urlref.softics.in/favicon.png" />
+    <meta property="og:image" content="https://urlref.softics.in/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="URLRef — Branded URL Shortener & Dynamic QR Codes" />
     <meta property="og:site_name" content="URLRef Softics" />
 
     <!-- Twitter Cards -->
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="URLRef — Shorten, Brand & Track Links with Dynamic QR Codes" />
     <meta
       name="twitter:description"
       content="Fast Base62 URL shortener and customizable dynamic QR codes with real time analytics and custom domains."
     />
-    <meta name="twitter:image" content="https://urlref.softics.in/favicon.png" />
+    <meta name="twitter:image" content="https://urlref.softics.in/og-image.png" />
 
-    <!-- Structured Data: WebApplication, Pricing & FAQ Schema -->
+    <!-- Structured Data: Organization, WebApplication, Pricing & FAQ Schema -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@graph": [
+          {
+            "@type": "Organization",
+            "name": "Softics",
+            "url": "https://softics.in",
+            "logo": "https://urlref.softics.in/favicon.png",
+            "sameAs": [
+              "https://urlref.softics.in"
+            ]
+          },
           {
             "@type": "WebApplication",
             "name": "URLRef",
@@ -56,19 +68,25 @@
                 "@type": "Offer",
                 "name": "Free Community",
                 "price": "0",
-                "priceCurrency": "INR"
+                "priceCurrency": "INR",
+                "priceValidUntil": "2027-12-31",
+                "availability": "https://schema.org/InStock"
               },
               {
                 "@type": "Offer",
                 "name": "Pro Creator",
                 "price": "199",
-                "priceCurrency": "INR"
+                "priceCurrency": "INR",
+                "priceValidUntil": "2027-12-31",
+                "availability": "https://schema.org/InStock"
               },
               {
                 "@type": "Offer",
                 "name": "Growth Agency",
                 "price": "499",
-                "priceCurrency": "INR"
+                "priceCurrency": "INR",
+                "priceValidUntil": "2027-12-31",
+                "availability": "https://schema.org/InStock"
               }
             ]
           },
@@ -85,10 +103,10 @@
               },
               {
                 "@type": "Question",
-                "name": "How do custom domains work?",
+                "name": "How do custom domains work for marketing agencies?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "You point a CNAME DNS record to our edge target. Cloudflare for SaaS automatically issues an SSL certificate, and your short links run under your own domain name."
+                  "text": "Marketing agencies can connect up to 5 custom domains on our Growth plan. You point a CNAME DNS record to our edge target. Cloudflare for SaaS automatically issues an SSL certificate, and short links run under your clients' brand domains."
                 }
               },
               {
@@ -101,10 +119,10 @@
               },
               {
                 "@type": "Question",
-                "name": "Can I export QR codes for physical printing?",
+                "name": "Can I export dynamic QR codes for commercial physical printing?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Yes. The studio generates lossless vector SVG files and high resolution 1024 pixel PNG files suitable for print shops, restaurant tent cards, and product packaging."
+                  "text": "Yes. URLRef generates lossless vector SVG files and high resolution 1024 pixel PNG files with embedded brand logos suitable for print packaging, restaurant tent cards, and marketing collateral."
                 }
               },
               {

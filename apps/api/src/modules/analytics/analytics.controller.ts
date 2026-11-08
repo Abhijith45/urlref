@@ -31,4 +31,29 @@ export class AnalyticsController {
       next(error);
     }
   }
+
+  public static async exportDashboardCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { filename, csv } = await AnalyticsService.exportAnalyticsCsv(req.user!.id);
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.status(200).send(csv);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async exportLinkCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id: linkId } = linkIdParamSchema.parse(req.params);
+      const { filename, csv } = await AnalyticsService.exportAnalyticsCsv(req.user!.id, linkId);
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.status(200).send(csv);
+    } catch (error) {
+      next(error);
+    }
+  }
 }

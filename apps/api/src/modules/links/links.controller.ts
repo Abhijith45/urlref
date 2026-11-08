@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { LinksService } from './links.service';
 import {
+  bulkImportSchema,
   createLinkSchema,
   destinationUrlSchema,
   linkIdParamSchema,
@@ -66,6 +67,20 @@ export class LinksController {
 
       res.status(201).json({
         data: link,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public static async bulkImportLinks(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const validatedInput = bulkImportSchema.parse(req.body);
+      const userId = req.user.id;
+      const result = await LinksService.bulkImportLinks(userId, validatedInput);
+
+      res.status(201).json({
+        data: result,
       });
     } catch (error) {
       next(error);

@@ -3,6 +3,7 @@ import { prisma } from '../../database/db';
 import { env } from '../../config/env';
 import { getStripeClient, isStripeConfigured } from './stripe.client';
 import { BadRequestError, NotFoundError } from '../../errors/app-error';
+import { logger } from '../../utils/logger';
 import {
   CreateCheckoutSessionInput,
   SubscriptionStatusDto,
@@ -250,7 +251,25 @@ export class BillingService {
    * Processes verified incoming Stripe Webhook events to keep user plan and subscription status in sync.
    */
   static async handleWebhookEvent(event: Stripe.Event): Promise<void> {
-    const stripe = getStripeClient();
+    // 1. Enforce Webhook Idempotency: Reject duplicate/replayed events
+    try {
+      await prisma.webhookEvent.create({
+        data: {
+          id: event.id,
+          type: event.type,
+        },
+      });
+    } catch (error: unknown) {
+      const prismaErr = error as { code?: string };
+      if (prismaErr.code === 'P2002') {
+        logger.info(
+          { eventId: event.id, type: event.type },
+          'Webhook event already processed (idempotent skip)',
+        );
+        return;
+      }
+      throw error;
+    }
 
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -265,6 +284,7 @@ export class BillingService {
           const userId = session.metadata?.userId;
           const targetTier = (session.metadata?.targetTier as PlanTier) || 'PRO';
 
+          const stripe = getStripeClient();
           const subscription = await stripe.subscriptions.retrieve(subscriptionId);
           const periodEnd = (subscription as any).current_period_end
             ? new Date((subscription as any).current_period_end * 1000)

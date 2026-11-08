@@ -7,39 +7,23 @@ import {
   Button,
   TextField,
   InputAdornment,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Chip,
-  IconButton,
-  Tooltip,
   TablePagination,
   CircularProgress,
 } from '@mui/material';
-import {
-  Plus,
-  Search,
-  Copy,
-  Check,
-  QrCode,
-  Edit2,
-  Trash2,
-  BarChart2,
-  ExternalLink,
-} from 'lucide-react';
+import { Plus, Search, FileSpreadsheet } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../services/api-client';
 import { queryKeys } from '../services/query-keys';
 import { LinkDto } from '@shortener/shared';
 import { CreateLinkModal } from '../components/links/CreateLinkModal';
+import { BulkImportModal } from '../components/links/BulkImportModal';
 import { EditLinkModal } from '../components/links/EditLinkModal';
 import { DeleteLinkModal } from '../components/links/DeleteLinkModal';
 import { QrCodeModal } from '../components/links/QrCodeModal';
+import { BillingModal } from '../components/billing/BillingModal';
+import { LinksTable } from '../components/links/LinksTable';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 export const LinksListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -56,9 +40,11 @@ export const LinksListPage: React.FC = () => {
 
   // Modal States
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [editingLink, setEditingLink] = useState<LinkDto | null>(null);
   const [deletingLink, setDeletingLink] = useState<LinkDto | null>(null);
   const [qrLink, setQrLink] = useState<LinkDto | null>(null);
+  const [isBillingOpen, setIsBillingOpen] = useState(false);
 
   // Fetch paginated links
   const { data, isLoading } = useQuery({
@@ -85,6 +71,7 @@ export const LinksListPage: React.FC = () => {
   const handleCopy = (id: string, url: string) => {
     navigator.clipboard.writeText(url);
     setCopiedId(id);
+    toast.success('Link copied to clipboard!');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -114,16 +101,28 @@ export const LinksListPage: React.FC = () => {
             Manage, customize, and track performance of all your shortened URLs.
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          disableElevation
-          disableRipple
-          startIcon={<Plus size={18} />}
-          onClick={() => setIsCreateOpen(true)}
-          sx={{ px: 3, py: 1, textTransform: 'none', fontWeight: 700 }}
-        >
-          Create short link
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+          <Button
+            variant="outlined"
+            disableElevation
+            disableRipple
+            startIcon={<FileSpreadsheet size={18} />}
+            onClick={() => setIsBulkOpen(true)}
+            sx={{ px: 2.5, py: 1, textTransform: 'none', fontWeight: 600 }}
+          >
+            Bulk Import (CSV)
+          </Button>
+          <Button
+            variant="contained"
+            disableElevation
+            disableRipple
+            startIcon={<Plus size={18} />}
+            onClick={() => setIsCreateOpen(true)}
+            sx={{ px: 3, py: 1, textTransform: 'none', fontWeight: 700 }}
+          >
+            Create short link
+          </Button>
+        </Box>
       </Box>
 
       <Card sx={{ p: 1 }}>
@@ -173,132 +172,15 @@ export const LinksListPage: React.FC = () => {
             </Box>
           ) : (
             <>
-              <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #E4E9DC' }}>
-                <Table size="medium">
-                  <TableHead sx={{ bgcolor: 'background.default' }}>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 700 }}>Short link</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Destination URL</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Clicks</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Created</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>
-                        Actions
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {data.data.map((link) => (
-                      <TableRow key={link.id} hover>
-                        <TableCell sx={{ fontWeight: 600 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box>
-                              <Typography
-                                variant="body2"
-                                sx={{ fontWeight: 600, color: 'primary.main', display: 'block', fontFamily: 'Geist Mono, monospace' }}
-                              >
-                                {link.customDomain ? `${link.customDomain.hostname}/${link.code}` : `/${link.code}`}
-                              </Typography>
-                              {link.title && (
-                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                                  {link.title}
-                                </Typography>
-                              )}
-                            </Box>
-                            <Tooltip title={copiedId === link.id ? 'Copied!' : 'Copy Short Link'}>
-                              <IconButton
-                                size="small"
-                                disableRipple
-                                onClick={() => handleCopy(link.id, link.shortUrl)}
-                              >
-                                {copiedId === link.id ? (
-                                  <Check size={14} color="#71951E" />
-                                ) : (
-                                  <Copy size={14} />
-                                )}
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ maxWidth: 280 }}>
-                          <Typography
-                            variant="body2"
-                            noWrap
-                            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
-                          >
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {link.destinationUrl}
-                            </span>
-                            <a
-                              href={link.destinationUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{ color: '#64748b', display: 'flex' }}
-                            >
-                              <ExternalLink size={12} />
-                            </a>
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={`${link.totalClicks ?? 0} clicks`}
-                            size="small"
-                            variant="outlined"
-                            sx={{ fontWeight: 600, fontSize: '0.75rem' }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={link.isActive ? 'Active' : 'Disabled'}
-                            size="small"
-                            color={link.isActive ? 'success' : 'default'}
-                            sx={{ fontSize: '0.75rem', height: 22 }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                            {new Date(link.createdAt).toLocaleDateString()}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-                            <Tooltip title="View analytics">
-                              <IconButton
-                                size="small"
-                                disableRipple
-                                onClick={() => navigate(`/dashboard/analytics/${link.id}`)}
-                                sx={{ color: 'primary.main' }}
-                              >
-                                <BarChart2 size={16} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="QR code">
-                              <IconButton size="small" disableRipple onClick={() => setQrLink(link)}>
-                                <QrCode size={16} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Edit link">
-                              <IconButton size="small" disableRipple onClick={() => setEditingLink(link)}>
-                                <Edit2 size={16} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                              <IconButton
-                                size="small"
-                                disableRipple
-                                onClick={() => setDeletingLink(link)}
-                                sx={{ color: 'error.main' }}
-                              >
-                                <Trash2 size={16} />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <LinksTable
+                links={data.data}
+                copiedId={copiedId}
+                onCopy={handleCopy}
+                onViewAnalytics={(id) => navigate(`/dashboard/analytics/${id}`)}
+                onOpenQr={(link) => setQrLink(link)}
+                onEdit={(link) => setEditingLink(link)}
+                onDelete={(link) => setDeletingLink(link)}
+              />
 
               <TablePagination
                 rowsPerPageOptions={[5, 10, 25]}
@@ -322,6 +204,13 @@ export const LinksListPage: React.FC = () => {
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onSuccess={handleRefetch}
+        onUpgradeRequired={() => setIsBillingOpen(true)}
+      />
+      <BulkImportModal
+        open={isBulkOpen}
+        onClose={() => setIsBulkOpen(false)}
+        onSuccess={handleRefetch}
+        onUpgradeRequired={() => setIsBillingOpen(true)}
       />
       <EditLinkModal
         open={Boolean(editingLink)}
@@ -336,6 +225,14 @@ export const LinksListPage: React.FC = () => {
         onSuccess={handleRefetch}
       />
       <QrCodeModal open={Boolean(qrLink)} link={qrLink} onClose={() => setQrLink(null)} />
+      <BillingModal
+        open={isBillingOpen}
+        onClose={() => setIsBillingOpen(false)}
+        onRefresh={() => {
+          queryClient.invalidateQueries({ queryKey: ['billing', 'subscription'] });
+          handleRefetch();
+        }}
+      />
     </Box>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -13,6 +13,8 @@ import {
 } from '@mui/material';
 import { apiClient } from '../../services/api-client';
 import { LinkDto } from '@shortener/shared';
+import { toast } from 'react-toastify';
+import { UtmBuilderAccordion, UtmValues } from './UtmBuilderAccordion';
 
 interface EditLinkModalProps {
   open: boolean;
@@ -21,28 +23,31 @@ interface EditLinkModalProps {
   onSuccess: (updatedLink: LinkDto) => void;
 }
 
-export const EditLinkModal: React.FC<EditLinkModalProps> = ({ open, link, onClose, onSuccess }) => {
-  const [destinationUrl, setDestinationUrl] = useState('');
-  const [title, setTitle] = useState('');
-  const [isActive, setIsActive] = useState(true);
-  const [expiresAt, setExpiresAt] = useState('');
+interface EditLinkFormProps {
+  link: LinkDto;
+  onClose: () => void;
+  onSuccess: (updatedLink: LinkDto) => void;
+}
+
+const EditLinkForm: React.FC<EditLinkFormProps> = ({ link, onClose, onSuccess }) => {
+  const [destinationUrl, setDestinationUrl] = useState(link.destinationUrl);
+  const [title, setTitle] = useState(link.title || '');
+  const [isActive, setIsActive] = useState(link.isActive);
+  const [expiresAt, setExpiresAt] = useState(
+    link.expiresAt ? new Date(link.expiresAt).toISOString().slice(0, 16) : ''
+  );
+  const [utmParams, setUtmParams] = useState<UtmValues>({
+    utmSource: link.utmSource || '',
+    utmMedium: link.utmMedium || '',
+    utmCampaign: link.utmCampaign || '',
+    utmTerm: link.utmTerm || '',
+    utmContent: link.utmContent || '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (link) {
-      setDestinationUrl(link.destinationUrl);
-      setTitle(link.title || '');
-      setIsActive(link.isActive);
-      setExpiresAt(link.expiresAt ? new Date(link.expiresAt).toISOString().slice(0, 16) : '');
-      setError(null);
-    }
-  }, [link]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!link) return;
-
     setLoading(true);
     setError(null);
 
@@ -52,10 +57,16 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ open, link, onClos
         title: title.trim() || undefined,
         isActive,
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+        utmSource: utmParams.utmSource?.trim() || null,
+        utmMedium: utmParams.utmMedium?.trim() || null,
+        utmCampaign: utmParams.utmCampaign?.trim() || null,
+        utmTerm: utmParams.utmTerm?.trim() || null,
+        utmContent: utmParams.utmContent?.trim() || null,
       };
 
       const response = await apiClient.patch<{ data: LinkDto }>(`/api/v1/links/${link.id}`, payload);
       onSuccess(response.data.data);
+      toast.success('Short link updated successfully!');
       onClose();
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -68,10 +79,8 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ open, link, onClos
     }
   };
 
-  if (!link) return null;
-
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <>
       <DialogTitle sx={{ fontWeight: 700 }}>Edit Link: /{link.code}</DialogTitle>
       <Box component="form" onSubmit={handleSubmit}>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
@@ -116,6 +125,13 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ open, link, onClos
             disabled={loading}
             helperText="Clear to disable automatic expiration"
           />
+
+          <UtmBuilderAccordion
+            value={utmParams}
+            destinationUrl={destinationUrl}
+            onChange={setUtmParams}
+            disabled={loading}
+          />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
           <Button onClick={onClose} disabled={loading} color="inherit" disableElevation disableRipple sx={{ textTransform: 'none' }}>
@@ -133,6 +149,16 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ open, link, onClos
           </Button>
         </DialogActions>
       </Box>
+    </>
+  );
+};
+
+export const EditLinkModal: React.FC<EditLinkModalProps> = ({ open, link, onClose, onSuccess }) => {
+  if (!open || !link) return null;
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <EditLinkForm key={link.id} link={link} onClose={onClose} onSuccess={onSuccess} />
     </Dialog>
   );
 };
