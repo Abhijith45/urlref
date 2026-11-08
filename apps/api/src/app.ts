@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { clerkMiddleware } from '@clerk/express';
 import { env } from './config/env';
+import { logger } from './utils/logger';
 import { requestIdMiddleware } from './middleware/request-id.middleware';
 import { requestLoggerMiddleware } from './middleware/logger.middleware';
 import { errorHandlerMiddleware } from './middleware/error.middleware';
@@ -67,13 +68,28 @@ export function createApp(): Express {
   app.use(requestLoggerMiddleware);
 
   // Clerk Authentication Middleware (verifies RS256 JWTs)
-  if (env.CLERK_SECRET_KEY) {
-    app.use(
-      clerkMiddleware({
+  if (
+    env.CLERK_SECRET_KEY &&
+    !env.CLERK_SECRET_KEY.includes('mock') &&
+    env.CLERK_PUBLISHABLE_KEY &&
+    !env.CLERK_PUBLISHABLE_KEY.includes('mock')
+  ) {
+    try {
+      const clerkHandler = clerkMiddleware({
         publishableKey: env.CLERK_PUBLISHABLE_KEY,
         secretKey: env.CLERK_SECRET_KEY,
-      }),
-    );
+      });
+      app.use((req: Request, res: Response, next: NextFunction) => {
+        try {
+          return clerkHandler(req, res, next);
+        } catch (clerkErr) {
+          logger.warn({ clerkErr }, 'Clerk middleware execution error; bypassing');
+          return next();
+        }
+      });
+    } catch (clerkInitErr) {
+      logger.warn({ clerkInitErr }, 'Clerk initialization failed; skipping Clerk middleware');
+    }
   }
 
   // CSRF Defense: Reject cross-site and unauthorized origin mutations

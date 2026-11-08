@@ -50,7 +50,9 @@ const PageLoaderFallback: React.FC = () => (
   </Box>
 );
 
-const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const CLERK_PUBLISHABLE_KEY =
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ||
+  'pk_test_bWFnaWNhbC10dXJrZXktMjIxNS5jbGVyay5hY2NvdW50cy5kZXYk';
 
 const queryClient = new QueryClient({
   defaultOptions: {
