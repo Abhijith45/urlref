@@ -1,0 +1,72 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Lint, Typecheck & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: shortener
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: shortener_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema=apps/api/prisma/schema.prisma
+
+      - name: Build Shared Package
+        run: npm run build -w packages/shared
+
+      - name: Typecheck Backend (apps/api)
+        run: npx tsc --noEmit -p apps/api/tsconfig.json
+
+      - name: Build & Typecheck Frontend (apps/web)
+        run: npm run build -w apps/web
+
+      - name: Run Database Migrations
+        env:
+          DATABASE_URL: postgresql://shortener:test_password@localhost:5432/shortener_test
+        run: npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
+
+      - name: Run Unit & Integration Tests
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://shortener:test_password@localhost:5432/shortener_test
+          SESSION_SECRET: test_session_secret_with_at_least_32_characters_long_12345
+          CLERK_PUBLISHABLE_KEY: pk_test_mock_clerk_publishable_key
+          CLERK_SECRET_KEY: sk_test_mock_clerk_secret_key_12345
+          STRIPE_SECRET_KEY: sk_test_mock_stripe_secret_key_12345
+          STRIPE_WEBHOOK_SECRET: whsec_test_mock_webhook_secret_12345
+        run: npm run test -w apps/api

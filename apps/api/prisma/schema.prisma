@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum PlanTier {
+  FREE
+  PRO
+  AGENCY
+}
+
+enum DomainStatus {
+  PENDING
+  VERIFIED
+  ACTIVE
+  FAILED
+}
+
+model User {
+  id                    String    @id @default(uuid()) @db.Uuid
+  clerkId               String?   @unique @map("clerk_id") @db.VarChar(64)
+  email                 String    @unique @db.VarChar(320)
+  passwordHash          String?   @map("password_hash") @db.VarChar(255)
+  role                  UserRole  @default(USER)
+  plan                  PlanTier  @default(FREE)
+  stripeCustomerId      String?   @unique @map("stripe_customer_id") @db.VarChar(128)
+  stripeSubscriptionId  String?   @unique @map("stripe_subscription_id") @db.VarChar(128)
+  stripePriceId         String?   @map("stripe_price_id") @db.VarChar(128)
+  subscriptionStatus    String?   @default("inactive") @map("subscription_status") @db.VarChar(32)
+  subscriptionPeriodEnd DateTime? @map("subscription_period_end") @db.Timestamptz(6)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  links         Link[]
+  customDomains CustomDomain[]
+
+  @@index([clerkId])
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+  @@map("users")
+}
+
+model CustomDomain {
+  id                String       @id @default(uuid()) @db.Uuid
+  userId            String       @map("user_id") @db.Uuid
+  hostname          String       @unique @db.VarChar(255)
+  status            DomainStatus @default(PENDING)
+  verificationToken String       @map("verification_token") @db.VarChar(64)
+  cnameTarget       String       @default("cname.urlref.softics.in") @map("cname_target") @db.VarChar(255)
+  sslStatus         String       @default("pending_validation") @map("ssl_status") @db.VarChar(64)
+  custom404Url      String?      @map("custom_404_url") @db.VarChar(2048)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  links Link[]
+
+  @@index([userId])
+  @@index([hostname])
+  @@map("custom_domains")
+}
+
+model Link {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String?   @map("user_id") @db.Uuid
+  customDomainId String?   @map("custom_domain_id") @db.Uuid
+  code           String    @unique @db.VarChar(32)
+  destinationUrl String    @map("destination_url") @db.Text
+  isActive       Boolean   @default(true) @map("is_active")
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customDomain CustomDomain? @relation(fields: [customDomainId], references: [id], onDelete: SetNull)
+  clickEvents  ClickEvent[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([customDomainId])
+  @@index([expiresAt])
+  @@map("links")
+}
+
+model ClickEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  linkId      String   @map("link_id") @db.Uuid
+  clickedAt   DateTime @default(now()) @map("clicked_at") @db.Timestamptz(6)
+  referrer    String?  @db.VarChar(512)
+  deviceType  String?  @map("device_type") @db.VarChar(64)
+  countryCode String?  @map("country_code") @db.VarChar(2)
+
+  link Link @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId, clickedAt(sort: Desc)])
+  @@map("click_events")
+}

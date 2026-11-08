@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build & Compilation Outputs
+dist/
+dist-ssr/
+build/
+out/
+.next/
+*.tsbuildinfo
+.eslintcache
+.vite/
+.parcel-cache/
+
+# Environment Variables & Platform Secrets (Strict - never commit secrets)
+.env
+.env.*
+!.env.example
+!apps/*/.env.example
+*.pem
+*.key
+*.cert
+*.crt
+
+# Node & Package Manager Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+logs/
+*.log
+
+# Testing, E2E & Code Coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# IDEs & Editor State
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.sublime-project
+*.sublime-workspace
+
+# Temporary & Database Dump Files
+*.tmp
+*.temp
+*.bak
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+
+# Local Agent Workspace Caches (keep repo skills intact)
+.gemini/

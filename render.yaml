@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: url-shortener-api
+    env: docker
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    domains:
+      - apiref.softics.in
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: APP_BASE_URL
+        value: https://apiref.softics.in
+      - key: FRONTEND_URL
+        value: https://urlref.softics.in
+      - key: COOKIE_DOMAIN
+        value: .softics.in
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRO_MONTHLY_PRICE_ID
+        sync: false
+      - key: STRIPE_PRO_ANNUAL_PRICE_ID
+        sync: false
+      - key: STRIPE_AGENCY_MONTHLY_PRICE_ID
+        sync: false
+      - key: STRIPE_AGENCY_ANNUAL_PRICE_ID
+        sync: false
