@@ -10,6 +10,9 @@
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
+    "build:shared": "npm run build -w packages/shared",
+    "build:api": "npm run build -w packages/shared && npm run prisma:generate -w apps/api && npm run build -w apps/api",
+    "build:web": "npm run build -w packages/shared && npm run build -w apps/web",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",

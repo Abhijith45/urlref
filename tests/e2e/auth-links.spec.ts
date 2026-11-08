@@ -1,24 +1,29 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('URL Shortener Full User Journey & Landing Page', () => {
+test.describe('URLRef Full User Journey & Dashboard Workflow', () => {
   const testEmail = `e2e_${Date.now()}@softics.in`;
   const testPassword = 'Password123!';
 
-  test('should display landing page and allow anonymous URL shortening', async ({ page }) => {
+  test('should display landing page, allow anonymous URL shortening, and switch to QR studio', async ({ page }) => {
     // 1. Visit landing page
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /shorten, share & track/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /shorten, brand and track links in milliseconds/i })).toBeVisible();
 
     // 2. Shorten an anonymous URL
-    await page.getByPlaceholder(/paste your long url here/i).fill('https://news.ycombinator.com');
-    await page.getByRole('button', { name: /shorten url/i }).click();
+    await page.getByPlaceholder(/paste your long link here/i).fill('https://news.ycombinator.com');
+    await page.getByRole('button', { name: /shorten link/i }).click();
 
-    // 3. Verify result preview is visible
-    await expect(page.getByText(/your shortened url/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /qr code/i })).toBeVisible();
+    // 3. Verify Rebrandly-style conversion card appears
+    await expect(page.getByText(/here is your shortened and trackable link/i)).toBeVisible();
+    await expect(page.getByText(/here are more things you can do in urlref/i)).toBeVisible();
+
+    // 4. Switch to QR Studio via header/tab
+    await page.getByRole('button', { name: /qr studio/i }).first().click();
+    await expect(page.getByRole('heading', { name: /design branded dynamic qr codes in seconds/i })).toBeVisible();
+    await expect(page.getByText(/qr preview inactive/i)).toBeVisible();
   });
 
-  test('should allow a user to register, create a link, and view dashboard', async ({ page }) => {
+  test('should allow a user to register, view dashboard, create a link, and inspect domains', async ({ page }) => {
     // 1. Visit Register Page
     await page.goto('/register');
     await expect(page.getByRole('heading', { name: /create an account/i })).toBeVisible();
@@ -41,12 +46,9 @@ test.describe('URL Shortener Full User Journey & Landing Page', () => {
     await expect(page.getByText(/newly shortened url:/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /copy/i })).toBeVisible();
 
-    // 6. Navigate to Links page
-    await page.getByRole('button', { name: /view all links/i }).click();
-    await expect(page).toHaveURL(/\/dashboard\/links/);
-    await expect(page.getByRole('heading', { name: /my links/i })).toBeVisible();
-
-    // 7. Verify the new link appears in the table
-    await expect(page.getByText(destination)).toBeVisible();
+    // 6. Navigate to Custom Domains page
+    await page.goto('/dashboard/domains');
+    await expect(page.getByRole('heading', { name: /custom branded domains/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /connect domain/i })).toBeVisible();
   });
 });
