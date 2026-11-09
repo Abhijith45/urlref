@@ -44,12 +44,12 @@ export const LandingComparisonSection: React.FC = () => {
                 <Box component="tr">
                   <Box component="td" sx={{ py: 2, px: 3, fontWeight: 600, color: '#1C2411' }}>Dynamic Editable QR Codes</Box>
                   <Box component="td" sx={{ py: 2, px: 3, fontWeight: 700, color: '#587529', bgcolor: 'rgba(88, 117, 41, 0.04)' }}>Included with Vector SVG</Box>
-                  <Box component="td" sx={{ py: 2, px: 3, color: '#556345' }}>Extra paid add-on</Box>
+                  <Box component="td" sx={{ py: 2, px: 3, color: '#556345' }}>Extra paid add on</Box>
                   <Box component="td" sx={{ py: 2, px: 3, color: '#556345' }}>Locked behind paywall</Box>
                 </Box>
                 <Box component="tr">
                   <Box component="td" sx={{ py: 2, px: 3, fontWeight: 600, color: '#1C2411' }}>Branded UPI QR with Logo</Box>
-                  <Box component="td" sx={{ py: 2, px: 3, fontWeight: 700, color: '#587529', bgcolor: 'rgba(88, 117, 41, 0.04)' }}>Native built-in</Box>
+                  <Box component="td" sx={{ py: 2, px: 3, fontWeight: 700, color: '#587529', bgcolor: 'rgba(88, 117, 41, 0.04)' }}>Native built in</Box>
                   <Box component="td" sx={{ py: 2, px: 3, color: '#556345' }}>Not supported</Box>
                   <Box component="td" sx={{ py: 2, px: 3, color: '#556345' }}>Not supported</Box>
                 </Box>

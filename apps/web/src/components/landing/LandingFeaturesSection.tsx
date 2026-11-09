@@ -36,7 +36,7 @@ const BENEFIT_CARDS = [
     icon: <Globe size={22} />,
     iconBg: 'rgba(237, 218, 94, 0.35)',
     title: 'Branded domains',
-    desc: 'Connect your own subdomain with automated edge SSL through Cloudflare for maximum trust and higher click rates.',
+    desc: 'Connect your own subdomain with automated free SSL certificates for maximum trust and higher click rates.',
   },
   {
     icon: <BarChart3 size={22} />,

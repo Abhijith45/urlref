@@ -26,7 +26,7 @@ const HOMEPAGE_FAQS = [
   },
   {
     q: 'How do custom domains work?',
-    a: 'You point a CNAME DNS record to our edge target. Cloudflare for SaaS automatically issues an SSL certificate, and your short links run under your own domain name.',
+    a: 'You point a CNAME DNS record to our edge target. Our platform automatically provisions a secure SSL certificate, and your short links run under your own domain name.',
   },
   {
     q: 'Which payment methods are accepted in India?',
