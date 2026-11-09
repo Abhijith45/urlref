@@ -35,6 +35,9 @@ const LinkAnalyticsPage = React.lazy(() =>
 const DashboardSettingsPage = React.lazy(() =>
   import('./pages/DashboardSettingsPage').then((m) => ({ default: m.DashboardSettingsPage })),
 );
+const LinkErrorPage = React.lazy(() =>
+  import('./pages/LinkErrorPage').then((m) => ({ default: m.LinkErrorPage })),
+);
 
 // Lazy-loaded targeted public solution & tool landing pages for SEO intent
 const AgencySolutionPage = React.lazy(() =>
@@ -212,8 +215,33 @@ export const App: React.FC = () => {
                   <Route path="/analytics" element={<Navigate to="/dashboard/analytics" replace />} />
                   <Route path="/analytics/:id" element={<Navigate to="/dashboard/analytics" replace />} />
 
+                  {/* Public Error & Fallback Routes */}
+                  <Route
+                    path="/link-not-found"
+                    element={
+                      <Suspense fallback={<PageLoaderFallback />}>
+                        <LinkErrorPage type="not-found" />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/link-expired"
+                    element={
+                      <Suspense fallback={<PageLoaderFallback />}>
+                        <LinkErrorPage type="expired" />
+                      </Suspense>
+                    }
+                  />
+
                   {/* Catch-all */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route
+                    path="*"
+                    element={
+                      <Suspense fallback={<PageLoaderFallback />}>
+                        <LinkErrorPage type="not-found" />
+                      </Suspense>
+                    }
+                  />
                 </Routes>
               </BrowserRouter>
               <ToastContainer

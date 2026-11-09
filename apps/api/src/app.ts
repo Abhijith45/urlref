@@ -81,6 +81,10 @@ export function createApp(): Express {
         secretKey: env.CLERK_SECRET_KEY,
       });
       app.use((req: Request, res: Response, next: NextFunction) => {
+        // Skip Clerk browser handshake for public redirects and health probes
+        if (!req.path.startsWith('/api/')) {
+          return next();
+        }
         try {
           return clerkHandler(req, res, next);
         } catch (clerkErr) {

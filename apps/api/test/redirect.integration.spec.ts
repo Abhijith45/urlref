@@ -64,4 +64,48 @@ describe('Public 302 Redirect Engine (Integration)', () => {
     expect(res.status).toBe(410);
     expect(res.body.error).toHaveProperty('code', 'LINK_EXPIRED');
   });
+
+  it('GET /:code should redirect to domain custom404Url when nonexistent on custom domain', async () => {
+    vi.spyOn(prisma.customDomain, 'findFirst').mockResolvedValueOnce({
+      id: 'dom_123',
+      hostname: 'go.brand.com',
+      custom404Url: 'https://brand.com/oops',
+    } as any);
+    vi.spyOn(prisma.link, 'findFirst').mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .get('/nonexistent-slug')
+      .set('x-forwarded-host', 'go.brand.com');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('https://brand.com/oops');
+  });
+
+  it('GET /:code should redirect browser (text/html) to frontend link-not-found page when nonexistent on platform host', async () => {
+    vi.spyOn(prisma.link, 'findUnique').mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .get('/missing-link-code')
+      .set('Accept', 'text/html,application/xhtml+xml');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain('/link-not-found?code=missing-link-code');
+  });
+
+  it('GET /:code should redirect browser (text/html) to frontend link-expired page when expired on platform host', async () => {
+    vi.spyOn(prisma.link, 'findUnique').mockResolvedValueOnce({
+      id: 'link_expired_1',
+      code: 'old-promo',
+      destinationUrl: 'https://example.com/old',
+      isActive: true,
+      expiresAt: new Date(Date.now() - 3600 * 1000),
+    } as any);
+
+    const res = await request(app)
+      .get('/old-promo')
+      .set('Accept', 'text/html,application/xhtml+xml');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain('/link-expired?reason=expired&code=old-promo');
+  });
 });

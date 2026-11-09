@@ -5,7 +5,7 @@
 ### A fast and modern URL shortener, custom domain manager, and QR code maker.
 
 [![CI Pipeline](https://github.com/Abhijith45/urlref/actions/workflows/ci.yml/badge.svg)](https://github.com/Abhijith45/urlref/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/API%20Tests-98%20Passing-brightgreen?logo=vitest)](https://github.com/Abhijith45/urlref)
+[![Tests](https://img.shields.io/badge/API%20Tests-101%20Passing-brightgreen?logo=vitest)](https://github.com/Abhijith45/urlref)
 [![E2E Smoke](https://img.shields.io/badge/Browser%20Tests-13%20Passing-blue?logo=playwright)](https://github.com/Abhijith45/urlref)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql)](https://www.postgresql.org/)
@@ -35,7 +35,8 @@ Beyond simple shortening, URLRef lets teams connect their own web addresses (wit
 - **📦 Bulk CSV Shortener:** Upload a spreadsheet to create up to 1,000 shortened links at once with marketing tags (UTM parameters) included.
 - **🎨 Custom QR Code Studio:** Download styled QR codes with your brand colors and center logo for websites, WhatsApp chats, and UPI payments.
 - **🛡️ Safe Spreadsheets:** Protects against hidden formulas when exporting click data to Excel or Google Sheets.
-- **🤖 Automated Testing:** 98 backend tests and 13 browser tests run automatically to make sure link creation and logins never break.
+- **↩️ Custom 404 & Expired Link Fallback:** Redirects broken or expired links to your custom brand page instead of leaving visitors at a dead end.
+- **🤖 Automated Testing:** 101 backend tests and 13 browser tests run automatically to make sure link creation and logins never break.
 
 ---
 
@@ -97,7 +98,7 @@ Beyond simple shortening, URLRef lets teams connect their own web addresses (wit
 You can run the full test suite with these commands:
 
 ```bash
-# Run all 98 backend API tests
+# Run all 101 backend API tests
 npm run test -w apps/api
 
 # Run all 13 automated browser tests

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../database/db';
 import { dispatchClickEvent } from './click-dispatcher';
 import { redirectCache, CachedRedirectLink } from './redirect-cache';
+import { env } from '../../config/env';
 
 export class RedirectController {
   public static async handleRedirect(
@@ -15,8 +16,22 @@ export class RedirectController {
       // Prevent search engine crawlers from indexing vanity or ephemeral short links
       res.setHeader('X-Robots-Tag', 'noindex, nofollow');
 
+      // Helper to check if client explicitly requests HTML (e.g. human browser navigating directly)
+      const acceptHeader = req.headers.accept || '';
+      const isExplicitBrowserNavigation =
+        typeof acceptHeader === 'string' &&
+        acceptHeader.includes('text/html') &&
+        !acceptHeader.includes('application/json');
+
       // Validate code character set
       if (!code || !/^[a-zA-Z0-9_-]+$/.test(code) || code.length > 32) {
+        if (isExplicitBrowserNavigation) {
+          res.status(302);
+          res.setHeader('Location', `${env.FRONTEND_URL}/link-not-found?code=${encodeURIComponent(code)}`);
+          res.end();
+          return;
+        }
+
         res.status(404).json({
           error: {
             code: 'LINK_NOT_FOUND',
@@ -35,6 +50,13 @@ export class RedirectController {
       const cached = redirectCache.get(requestHost, code);
       if (cached === null) {
         // Negative cache hit (verified 404 in LRU memory within 15s)
+        if (isExplicitBrowserNavigation) {
+          res.status(302);
+          res.setHeader('Location', `${env.FRONTEND_URL}/link-not-found?code=${encodeURIComponent(code)}`);
+          res.end();
+          return;
+        }
+
         res.status(404).json({
           error: {
             code: 'LINK_NOT_FOUND',
@@ -106,10 +128,20 @@ export class RedirectController {
         }
       }
 
+      const fallback404 = customDomain?.custom404Url || cached?.custom404Url;
+
       if (!link) {
-        const fallback404 = customDomain?.custom404Url || cached?.custom404Url;
         if (fallback404) {
-          res.redirect(302, fallback404);
+          res.status(302);
+          res.setHeader('Location', fallback404);
+          res.end();
+          return;
+        }
+
+        if (isExplicitBrowserNavigation) {
+          res.status(302);
+          res.setHeader('Location', `${env.FRONTEND_URL}/link-not-found?code=${encodeURIComponent(code)}`);
+          res.end();
           return;
         }
 
@@ -124,6 +156,20 @@ export class RedirectController {
       }
 
       if (!link.isActive) {
+        if (fallback404) {
+          res.status(302);
+          res.setHeader('Location', fallback404);
+          res.end();
+          return;
+        }
+
+        if (isExplicitBrowserNavigation) {
+          res.status(302);
+          res.setHeader('Location', `${env.FRONTEND_URL}/link-expired?reason=disabled&code=${encodeURIComponent(code)}`);
+          res.end();
+          return;
+        }
+
         res.status(410).json({
           error: {
             code: 'LINK_INACTIVE',
@@ -135,6 +181,20 @@ export class RedirectController {
       }
 
       if (link.expiresAt && new Date() >= link.expiresAt) {
+        if (fallback404) {
+          res.status(302);
+          res.setHeader('Location', fallback404);
+          res.end();
+          return;
+        }
+
+        if (isExplicitBrowserNavigation) {
+          res.status(302);
+          res.setHeader('Location', `${env.FRONTEND_URL}/link-expired?reason=expired&code=${encodeURIComponent(code)}`);
+          res.end();
+          return;
+        }
+
         res.status(410).json({
           error: {
             code: 'LINK_EXPIRED',
