@@ -194,13 +194,24 @@ export const Navbar: React.FC<NavbarProps> = ({ onMobileNavToggle }) => {
               <MenuItem
                 onClick={() => {
                   handleCloseUserMenu();
-                  setBillingOpen(true);
+                  navigate('/dashboard/settings');
                 }}
               >
                 <ListItemIcon>
                   <CreditCard size={16} color="#71951E" />
                 </ListItemIcon>
-                <ListItemText primary="Billing & Plans" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
+                <ListItemText primary="Billing & Invoices" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  handleCloseUserMenu();
+                  setBillingOpen(true);
+                }}
+              >
+                <ListItemIcon>
+                  <Sparkles size={16} color="#587529" />
+                </ListItemIcon>
+                <ListItemText primary="Upgrade / Plans" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
               </MenuItem>
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>

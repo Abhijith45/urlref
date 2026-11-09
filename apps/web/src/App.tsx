@@ -32,6 +32,9 @@ const DashboardAnalyticsPage = React.lazy(() =>
 const LinkAnalyticsPage = React.lazy(() =>
   import('./pages/LinkAnalyticsPage').then((m) => ({ default: m.LinkAnalyticsPage })),
 );
+const DashboardSettingsPage = React.lazy(() =>
+  import('./pages/DashboardSettingsPage').then((m) => ({ default: m.DashboardSettingsPage })),
+);
 
 // Lazy-loaded targeted public solution & tool landing pages for SEO intent
 const AgencySolutionPage = React.lazy(() =>
@@ -190,6 +193,14 @@ export const App: React.FC = () => {
                       element={
                         <Suspense fallback={<PageLoaderFallback />}>
                           <LinkAnalyticsPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="settings"
+                      element={
+                        <Suspense fallback={<PageLoaderFallback />}>
+                          <DashboardSettingsPage />
                         </Suspense>
                       }
                     />

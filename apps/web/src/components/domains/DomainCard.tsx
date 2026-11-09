@@ -18,6 +18,10 @@ import {
   Trash2,
   Check,
   Copy,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
+  AlertTriangle,
 } from 'lucide-react';
 import { CustomDomainDto } from '@shortener/shared';
 
@@ -38,7 +42,11 @@ export const DomainCard: React.FC<DomainCardProps> = ({
   isVerifying,
   onDelete,
 }) => {
-  const isActive = dom.status === 'ACTIVE' || dom.status === 'VERIFIED';
+  const isDnsActive = dom.status === 'ACTIVE' || dom.status === 'VERIFIED';
+  const isDnsFailed = dom.status === 'FAILED';
+  const isSslActive = dom.sslStatus === 'active';
+  const isSslFailed = dom.sslStatus === 'failed';
+
   const cnameHost = dom.hostname.split('.')[0];
   const txtHost = `_urlref-challenge.${dom.hostname}`;
   const txtValue = `urlref-verification=${dom.verificationToken}`;
@@ -71,8 +79,8 @@ export const DomainCard: React.FC<DomainCardProps> = ({
               width: 42,
               height: 42,
               borderRadius: 2,
-              bgcolor: isActive ? 'rgba(113, 149, 30, 0.12)' : 'rgba(244, 190, 56, 0.15)',
-              color: isActive ? '#71951E' : '#B8860B',
+              bgcolor: isDnsActive ? 'rgba(113, 149, 30, 0.12)' : 'rgba(244, 190, 56, 0.15)',
+              color: isDnsActive ? '#71951E' : '#B8860B',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -91,13 +99,62 @@ export const DomainCard: React.FC<DomainCardProps> = ({
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-          <Chip
-            icon={isActive ? <CheckCircle2 size={14} /> : <Clock size={14} />}
-            label={isActive ? 'Active & Verified' : 'DNS Pending'}
-            color={isActive ? 'success' : 'warning'}
-            size="small"
-            sx={{ fontWeight: 700 }}
-          />
+          {/* DNS Status Badge */}
+          {isDnsActive ? (
+            <Chip
+              icon={<CheckCircle2 size={14} />}
+              label="DNS Active"
+              color="success"
+              size="small"
+              sx={{ fontWeight: 700 }}
+            />
+          ) : isDnsFailed ? (
+            <Chip
+              icon={<AlertTriangle size={14} />}
+              label="DNS Failed"
+              color="error"
+              size="small"
+              sx={{ fontWeight: 700 }}
+            />
+          ) : (
+            <Chip
+              icon={<Clock size={14} />}
+              label="DNS Pending"
+              color="warning"
+              size="small"
+              sx={{ fontWeight: 700 }}
+            />
+          )}
+
+          {/* SSL Status Indicator */}
+          {isSslActive ? (
+            <Chip
+              icon={<ShieldCheck size={14} />}
+              label="SSL Secured"
+              color="success"
+              variant="outlined"
+              size="small"
+              sx={{ fontWeight: 700, borderColor: '#71951E', color: '#587529' }}
+            />
+          ) : isSslFailed ? (
+            <Chip
+              icon={<ShieldX size={14} />}
+              label="SSL Error"
+              color="error"
+              variant="outlined"
+              size="small"
+              sx={{ fontWeight: 700 }}
+            />
+          ) : (
+            <Chip
+              icon={<ShieldAlert size={14} />}
+              label="SSL Generating"
+              color="warning"
+              variant="outlined"
+              size="small"
+              sx={{ fontWeight: 700 }}
+            />
+          )}
 
           <Button
             variant="outlined"
@@ -109,7 +166,7 @@ export const DomainCard: React.FC<DomainCardProps> = ({
             onClick={() => onVerify(dom.id)}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
-            Verify DNS
+            {isVerifying ? 'Verifying...' : 'Re-verify'}
           </Button>
 
           <Tooltip title="Delete domain">

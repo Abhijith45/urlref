@@ -10,7 +10,7 @@ import {
   Typography,
   Button,
 } from '@mui/material';
-import { LayoutDashboard, Link, BarChart3, QrCode, Sparkles, Globe } from 'lucide-react';
+import { LayoutDashboard, Link, BarChart3, QrCode, Sparkles, Globe, Settings } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../services/query-keys';
@@ -23,6 +23,7 @@ const navItems = [
   { label: 'QR Studio', path: '/dashboard/qr', icon: <QrCode size={20} /> },
   { label: 'Domains', path: '/dashboard/domains', icon: <Globe size={20} /> },
   { label: 'Analytics', path: '/dashboard/analytics', icon: <BarChart3 size={20} /> },
+  { label: 'Settings', path: '/dashboard/settings', icon: <Settings size={20} /> },
 ];
 
 interface SidebarProps {

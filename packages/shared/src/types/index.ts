@@ -38,6 +38,16 @@ export interface CustomerPortalResult {
   url: string;
 }
 
+export interface InvoiceDto {
+  id: string;
+  amountPaid: number;
+  currency: string;
+  status: string;
+  created: string;
+  pdfUrl: string | null;
+  hostedInvoiceUrl: string | null;
+}
+
 export interface UserDto {
   id: string;
   email: string;
